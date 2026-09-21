@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Local Environment Variables (CRITICAL: NEVER COMMIT SECRETS)
+.env
+.env.local
+.env.*.local
+
+# Build Outputs
+dist
+dist-ssr
+build
+*.local
+
+# Firebase & Deployment Cache
+.firebase
+.firebase/*
+*.log
+
+# Editor & System Files
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vscode/*
+!.vscode/extensions.json
+.idea

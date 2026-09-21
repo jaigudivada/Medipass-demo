@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Patient uploads directory: accessible for patient records
+    match /patient_uploads/{patientId}/{allPaths=**} {
+      allow read, write: if true;
+    }
+
+    // Hospital records directory: accessible for hospital staff records
+    match /records/{hospitalId}/{allPaths=**} {
+      allow read, write: if true;
+    }
+
+    // Default rule for all other paths
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
