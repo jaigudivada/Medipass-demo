@@ -221,9 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshAuth = async () => {
-    if (auth.currentUser) {
-      await resolveUserRole(auth.currentUser);
-    }
+    await resolveUserRole(auth.currentUser);
   };
 
   // Derive legacy user session object for backward compatibility
@@ -262,7 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hospitalId,
         isHospitalInactive,
         isLoading,
-        isAuthenticated: !!firebaseUser,
+        isAuthenticated: !!firebaseUser || !!currentPatient,
         loginStaff,
         logout,
         refreshAuth,
