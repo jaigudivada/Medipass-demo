@@ -71,6 +71,22 @@ export const useRealTimeListener = <T = any>({
 // ---------------------------------------------------------------------------
 
 /**
+ * Main Admin: Listen to all hospitals in real-time
+ */
+export const useHospitalListListener = (
+  onData: (hospitals: any[]) => void,
+  onError?: (err: any) => void
+) => {
+  useRealTimeListener({
+    collectionName: 'hospitals',
+    constraints: [],
+    onData,
+    onError,
+    enabled: true,
+  });
+};
+
+/**
  * Hospital Admin: Listen to staff roster at their assigned hospital in real-time
  */
 export const useHospitalStaffListener = (

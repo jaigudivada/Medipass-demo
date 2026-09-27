@@ -24,7 +24,7 @@ export async function saveStaffAccount(data: {
   name: string;
   email: string;
   password?: string;
-  role: 'doctor' | 'receptionist' | 'admin';
+  role: 'doctor' | 'receptionist' | 'admin' | 'main_admin' | 'hospital_admin';
   hospitalId: string;
   specialty?: string;
   department?: string;
@@ -96,7 +96,7 @@ export async function createStaffAccount(data: {
   name: string;
   email: string;
   password: string;
-  role: 'doctor' | 'receptionist' | 'admin';
+  role: 'doctor' | 'receptionist' | 'admin' | 'main_admin' | 'hospital_admin';
   hospitalId: string;
   specialty?: string;
   department?: string;

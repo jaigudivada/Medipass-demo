@@ -7,19 +7,57 @@ import DoctorDashboard from '../pages/doctor/DoctorDashboard';
 import DoctorPatientDetail from '../pages/doctor/DoctorPatientDetail';
 import ReceptionDashboard from '../pages/reception/ReceptionDashboard';
 import AdminDashboard from '../pages/admin/AdminDashboard';
+import MainAdminDashboard from '../pages/admin/MainAdminDashboard';
+import HospitalAdminDashboard from '../pages/admin/HospitalAdminDashboard';
 import { RequireAuth } from '../components/auth/RequireAuth';
+import { useAuth } from '../context/AuthContext';
 
 export default function AppRoutes() {
+  const { currentPatient, currentStaff, role } = useAuth();
+  const isLoggedIn = !!currentPatient || !!currentStaff;
+
   return (
     <Routes>
+      {/* Public Landing & Login */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
 
+      {/* Main Admin Route */}
       <Route
-        path="/patient"
+        path="/admin/main"
         element={
-          <RequireAuth allowedRoles={['patient']}>
-            <PatientDashboard />
+          <RequireAuth allowedRoles={['main_admin', 'admin']}>
+            <MainAdminDashboard />
+          </RequireAuth>
+        }
+      />
+
+      {/* Hospital Admin Route */}
+      <Route
+        path="/admin/hospital"
+        element={
+          <RequireAuth allowedRoles={['hospital_admin', 'admin']}>
+            <HospitalAdminDashboard />
+          </RequireAuth>
+        }
+      />
+
+      {/* General Admin Route */}
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth allowedRoles={['main_admin', 'hospital_admin', 'admin']}>
+            <AdminDashboard />
+          </RequireAuth>
+        }
+      />
+
+      {/* Staff Routes */}
+      <Route
+        path="/reception"
+        element={
+          <RequireAuth allowedRoles={['receptionist']}>
+            <ReceptionDashboard />
           </RequireAuth>
         }
       />
@@ -41,44 +79,39 @@ export default function AppRoutes() {
         }
       />
 
+      {/* Patient Route */}
       <Route
-        path="/reception"
+        path="/patient"
         element={
-          <RequireAuth allowedRoles={['receptionist']}>
-            <ReceptionDashboard />
+          <RequireAuth allowedRoles={['patient']}>
+            <PatientDashboard />
           </RequireAuth>
         }
       />
 
+      {/* Catch-all: Redirect based on role or to login */}
       <Route
-        path="/main-admin"
+        path="*"
         element={
-          <RequireAuth allowedRoles={['main_admin', 'admin']}>
-            <AdminDashboard />
-          </RequireAuth>
+          isLoggedIn && role ? (
+            <Navigate
+              to={
+                {
+                  main_admin: '/admin/main',
+                  hospital_admin: '/admin/hospital',
+                  admin: '/admin',
+                  doctor: '/doctor',
+                  receptionist: '/reception',
+                  patient: '/patient',
+                }[role] || '/'
+              }
+              replace
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
-
-      <Route
-        path="/hospital-admin"
-        element={
-          <RequireAuth allowedRoles={['hospital_admin', 'admin']}>
-            <AdminDashboard />
-          </RequireAuth>
-        }
-      />
-
-      <Route
-        path="/admin"
-        element={
-          <RequireAuth allowedRoles={['main_admin', 'hospital_admin', 'admin']}>
-            <AdminDashboard />
-          </RequireAuth>
-        }
-      />
-
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
-
