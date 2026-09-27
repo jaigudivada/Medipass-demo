@@ -33,16 +33,18 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
     setEmail(emailToUse);
     setPassword(passToUse);
 
+    localStorage.removeItem('medipass_demo_patient_phone');
+
     try {
       await loginStaff(emailToUse.trim(), passToUse);
       const routeMap: Record<typeof role, string> = {
         doctor: '/doctor',
         receptionist: '/reception',
-        main_admin: '/main-admin',
-        hospital_admin: '/hospital-admin',
-        admin: '/admin',
+        main_admin: '/admin/main',
+        hospital_admin: '/admin/hospital',
+        admin: '/admin/main',
       };
-      navigate(routeMap[role] || '/admin');
+      navigate(routeMap[role] || '/admin/main');
     } catch (err: any) {
       console.error('[StaffLoginForm] Login error:', err);
 

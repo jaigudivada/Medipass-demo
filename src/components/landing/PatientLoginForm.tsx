@@ -121,6 +121,8 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
     setLoading(true);
     setError(null);
     try {
+      const { signOut } = await import('firebase/auth');
+      await signOut(auth).catch(() => {});
       const demoPhone = '+911111111111';
       localStorage.setItem('medipass_demo_patient_phone', demoPhone);
       await refreshAuth();
@@ -144,6 +146,9 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
     setError(null);
 
     const normPhone = `+91${phoneNumber}`;
+
+    const { signOut } = await import('firebase/auth');
+    await signOut(auth).catch(() => {});
 
     // Demo OTP verification
     if (otpCode === '111111' || !confirmationResult) {
