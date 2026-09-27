@@ -6,16 +6,18 @@ import { Button } from '../ui/Button';
 import { auth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from '../../lib/firebase';
 import { getPatientByPhone, createPatientWithPhoneIndex } from '../../lib/firestore';
 
-export const PatientLoginForm: React.FC = () => {
-  // Raw 10-digit number without country code
-  const [phoneNumber, setPhoneNumber] = useState('');
+interface PatientLoginFormProps {
+  presetPhone?: string;
+}
+
+export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone = '' }) => {
+  const [phoneNumber, setPhoneNumber] = useState(presetPhone);
   const [otpCode, setOtpCode] = useState('');
   const [step, setStep] = useState<'phone' | 'otp' | 'register'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
-  // New patient registration state
   const [regName, setRegName] = useState('');
   const [regAge, setRegAge] = useState('');
   const [regBloodGroup, setRegBloodGroup] = useState('O+');
@@ -26,14 +28,18 @@ export const PatientLoginForm: React.FC = () => {
   const { refreshAuth } = useAuth();
   const navigate = useNavigate();
 
-  // Enforce digits only for 10-digit Indian mobile number rule (+91 ##########)
+  useEffect(() => {
+    if (presetPhone) {
+      const cleaned = presetPhone.replace(/\D/g, '').slice(-10);
+      setPhoneNumber(cleaned);
+    }
+  }, [presetPhone]);
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
-
     if (val.startsWith('+91')) {
       val = val.slice(3);
     }
-
     const cleaned = val.replace(/\D/g, '').slice(0, 10);
     setPhoneNumber(cleaned);
     setError(null);
@@ -42,7 +48,6 @@ export const PatientLoginForm: React.FC = () => {
   const isPhoneValid = phoneNumber.length === 10;
   const formattedFullPhone = `+91 ${phoneNumber.slice(0, 5)} ${phoneNumber.slice(5)}`;
 
-  // Clear reCAPTCHA element properly
   const resetRecaptcha = () => {
     if (window.recaptchaVerifier) {
       try {
@@ -67,7 +72,7 @@ export const PatientLoginForm: React.FC = () => {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isPhoneValid) {
-      setError('Please enter a valid 10-digit mobile number (+91 ##########).');
+      setError('Please enter a valid 10-digit mobile number.');
       return;
     }
 
@@ -83,7 +88,7 @@ export const PatientLoginForm: React.FC = () => {
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
         'expired-callback': () => {
-          setError('reCAPTCHA verification expired. Please send OTP again.');
+          setError('Verification expired. Please send OTP again.');
         },
       });
 
@@ -94,7 +99,33 @@ export const PatientLoginForm: React.FC = () => {
     } catch (err: any) {
       console.error('[Firebase Auth] Phone OTP error:', err);
       resetRecaptcha();
-      setError(err?.message || 'Firebase failed to send OTP.');
+      setError(err?.message || 'Firebase OTP failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoPatientSignIn = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const demoPhone = '+919876543212';
+      let patient = await getPatientByPhone(demoPhone);
+      if (!patient) {
+        patient = await createPatientWithPhoneIndex({
+          name: 'Jai Gudivada',
+          phone: demoPhone,
+          age: 28,
+          bloodGroup: 'O+',
+          allergies: ['Penicillin'],
+        });
+      }
+      localStorage.setItem('medipass_demo_patient_phone', demoPhone);
+      await refreshAuth();
+      navigate('/patient');
+    } catch (err: any) {
+      console.error('Demo patient login error:', err);
+      setError(err?.message || 'Failed to login demo patient');
     } finally {
       setLoading(false);
     }
@@ -108,7 +139,7 @@ export const PatientLoginForm: React.FC = () => {
     }
 
     if (!confirmationResult) {
-      setError('No active Firebase confirmation session. Please request a new OTP.');
+      setError('No active session. Please request a new OTP.');
       setStep('phone');
       return;
     }
@@ -118,14 +149,11 @@ export const PatientLoginForm: React.FC = () => {
 
     try {
       await confirmationResult.confirm(otpCode);
-      
-      // Check if patient record exists in Firestore
       const patient = await getPatientByPhone(`+91${phoneNumber}`);
       if (patient) {
         await refreshAuth();
         navigate('/patient');
       } else {
-        // New patient! Move to register step
         setStep('register');
       }
     } catch (err: any) {
@@ -169,7 +197,7 @@ export const PatientLoginForm: React.FC = () => {
       navigate('/patient');
     } catch (err: any) {
       console.error('[PatientRegistration] Error creating profile:', err);
-      setError(err?.message || 'Failed to create patient profile. Please try again.');
+      setError(err?.message || 'Failed to create patient profile.');
     } finally {
       setLoading(false);
     }
@@ -177,18 +205,41 @@ export const PatientLoginForm: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Container for Firebase Recaptcha */}
       <div id="recaptcha-container"></div>
+
+      {/* Demo Patient Access Card */}
+      <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+        <div className="text-xs font-semibold text-gray-700">
+          Demo Patient Access
+        </div>
+
+        <button
+          type="button"
+          onClick={handleDemoPatientSignIn}
+          disabled={loading}
+          className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
+        >
+          <div>
+            <div className="text-xs font-semibold text-gray-900">
+              Jai Gudivada (Patient Pass)
+            </div>
+            <div className="text-[11px] text-gray-500">Phone: +91 98765 43212</div>
+          </div>
+          <span className="text-xs font-medium text-blue-600">
+            Login
+          </span>
+        </button>
+      </div>
 
       {step === 'phone' && (
         <form onSubmit={handleSendOtp} className="space-y-4">
           <div>
-            <label htmlFor="patient-phone" className="text-xs font-semibold text-[#1A1D23] uppercase tracking-wider block mb-1.5">
-              Mobile Phone (+91 Rule)
+            <label htmlFor="patient-phone" className="text-xs font-semibold text-[#1A1D23] block mb-1.5">
+              Mobile Phone
             </label>
 
             <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-sm font-bold text-[#1A1D23] select-none">
+              <span className="absolute left-3.5 text-sm font-semibold text-[#1A1D23] select-none">
                 +91
               </span>
               <input
@@ -199,16 +250,9 @@ export const PatientLoginForm: React.FC = () => {
                 onChange={handlePhoneChange}
                 className={`w-full pl-12 pr-3.5 py-2.5 bg-white border ${
                   error ? 'border-red-500' : 'border-[#E2E4E9]'
-                } rounded-xl text-sm font-medium text-[#1A1D23] placeholder-[#98A2B3] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 transition-all`}
+                } rounded-xl text-sm font-medium text-[#1A1D23] placeholder-[#98A2B3] focus:outline-none focus:border-[#2563EB] transition-all`}
                 required
               />
-            </div>
-
-            <div className="flex items-center justify-between mt-1.5 text-xs text-[#525866]">
-              <span>Format: +91 ##########</span>
-              <span className={phoneNumber.length === 10 ? 'text-[#0D9488] font-semibold' : ''}>
-                {phoneNumber.length}/10 digits
-              </span>
             </div>
           </div>
 
@@ -230,8 +274,8 @@ export const PatientLoginForm: React.FC = () => {
         <form onSubmit={handleVerifyOtp} className="space-y-4">
           <div className="bg-[#F8F9FA] p-3 rounded-xl border border-[#E2E4E9] flex items-center justify-between text-xs text-[#1A1D23]">
             <div>
-              <span className="text-[#525866] block">OTP sent via SMS to:</span>
-              <span className="font-bold">{formattedFullPhone}</span>
+              <span className="text-[#525866] block">OTP sent to:</span>
+              <span className="font-semibold">{formattedFullPhone}</span>
             </div>
             <button
               type="button"
@@ -279,9 +323,9 @@ export const PatientLoginForm: React.FC = () => {
 
       {step === 'register' && (
         <form onSubmit={handleRegisterPatient} className="space-y-4">
-          <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-xs text-emerald-800">
-            <p className="font-semibold">First Time Sign In</p>
-            <p>Please complete your basic profile details to register your portable health pass.</p>
+          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-700">
+            <p className="font-semibold">First Time Registration</p>
+            <p>Please complete your details to create your profile.</p>
           </div>
 
           <Input
@@ -304,7 +348,7 @@ export const PatientLoginForm: React.FC = () => {
             />
 
             <div>
-              <label className="text-xs font-semibold text-[#1A1D23] uppercase tracking-wider block mb-1.5">
+              <label className="text-xs font-semibold text-[#1A1D23] block mb-1.5">
                 Blood Group
               </label>
               <select
@@ -350,4 +394,3 @@ declare global {
     grecaptcha: any;
   }
 }
-

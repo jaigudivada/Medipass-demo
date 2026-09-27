@@ -1,9 +1,6 @@
 # MediPass — Idea Submission PRD (v3 — Demo-Scoped Edition)
-**iQOO Hyderabad Hackathon 2026 — for registration only; supersedes v2 for this stage**
 
-**What changed and why:** v2 described the real architecture (Supabase, RLS, live multi-portal sync) — that's still the plan, but it belongs to the actual 30-hour build, not to this submission. The rulebook is explicit that code must be written during the event window, so anything you build now to register can't just become the final repo later. This version keeps the pitch, the roles, and the novelty claim exactly as they were — it only changes what the *prototype* is: a clickable, mocked demo good enough to film a 2–3 minute video, built in hours rather than the full weekend. Don't over-invest here; save the real engineering effort for the event, where it's actually scored.
 
----
 
 ## 1. Idea title
 **MediPass — Portable Health Passport**

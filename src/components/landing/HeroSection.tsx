@@ -5,13 +5,17 @@ export const HeroSection: React.FC = () => {
   return (
     <section className="relative bg-white pt-10 pb-16 sm:pt-16 sm:pb-20 overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        {/* Navigation Header - No badges */}
+        {/* Navigation Header */}
         <div className="flex items-center justify-between pb-8 mb-10 border-b border-[#E2E4E9] js-hero-item">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-[#2563EB] text-white flex items-center justify-center font-bold text-lg">
               M
             </div>
             <span className="text-xl font-bold tracking-tight text-[#1A1D23]">MediPass</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+            <span>Portable Health Passport & Access System</span>
           </div>
         </div>
 

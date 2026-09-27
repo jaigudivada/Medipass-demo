@@ -135,6 +135,4 @@ npx firebase-tools deploy --only hosting
 ---
 
 ## 📜 License & Acknowledgments
-
-Developed with ❤️ for the **IQOO Hackathon**.
 - Dedicated to improving healthcare accessibility, patient clarity, and hospital efficiency.

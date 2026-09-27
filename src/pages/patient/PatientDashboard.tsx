@@ -5,21 +5,17 @@ import { PhoneUpdateForm } from '../../components/patient/PhoneUpdateForm';
 import { PatientUploadModal } from '../../components/patient/PatientUploadModal';
 import { EmbeddedDocumentViewer } from '../../components/patient/EmbeddedDocumentViewer';
 import { Card, CardContent } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { useAuth } from '../../context/AuthContext';
 import { initPageAnimations } from '../../lib/animations';
 import {
-  getPatientByPhone,
-  getPatientById,
   subscribeToActivePatientSession,
   subscribeToPatientRecords,
   Patient,
   Session,
   MedicalRecordDoc,
 } from '../../lib/firestore';
-import { User, Phone, AlertTriangle, Eye, FileText, Download, Upload, Sparkles } from 'lucide-react';
 
 export default function PatientDashboard() {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -40,12 +36,10 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (!patient?.id) return;
 
-    // Real-time listener for active visit status
     const unsubSession = subscribeToActivePatientSession(patient.id, (sess) => {
       setActiveSession(sess);
     });
 
-    // Real-time listener for longitudinal records
     const unsubRecords = subscribeToPatientRecords(patient.id, (recs) => {
       setRecords(recs);
     });
@@ -86,28 +80,28 @@ export default function PatientDashboard() {
     <PageContainer roleName="Patient">
       <div ref={containerRef} className="space-y-6">
         
-        {/* Patient Demographic Card (NO patientId PRINTED IN UI) */}
-        <Card className="bg-white border-slate-200 js-hero-item">
+        {/* Patient Demographic Card */}
+        <Card className="bg-white border-slate-200">
           <CardContent className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xl shadow-xs shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xl shrink-0">
                 {patient.name.split(' ').map((n) => n[0]).join('')}
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-bold text-slate-900">{patient.name}</h1>
-                  <span className="text-xs text-slate-500 font-medium">• Blood Group {patient.bloodGroup} • {patient.age} Yrs</span>
+                  <span className="text-xs text-slate-500 font-medium">Blood Group {patient.bloodGroup} • {patient.age} Yrs</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
-                  <span className="flex items-center gap-1 font-semibold text-slate-700">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" /> {patient.phone}
+                  <span className="font-semibold text-slate-700">
+                    {patient.phone}
                   </span>
                   {patient.allergies && patient.allergies.length > 0 && (
                     <>
                       <span>•</span>
-                      <span className="flex items-center gap-1 text-amber-700 font-semibold">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Allergy: {patient.allergies.join(', ')}
+                      <span className="text-slate-700 font-semibold">
+                        Allergy: {patient.allergies.join(', ')}
                       </span>
                     </>
                   )}
@@ -122,8 +116,7 @@ export default function PatientDashboard() {
                 onClick={() => setShowUploadModal(true)}
                 className="text-xs bg-blue-600 hover:bg-blue-700"
               >
-                <Upload className="w-3.5 h-3.5 mr-1.5" />
-                <span>Upload Medical Record</span>
+                Upload Medical Record
               </Button>
               <Button
                 variant="outline"
@@ -131,8 +124,7 @@ export default function PatientDashboard() {
                 onClick={() => setShowPhoneUpdateModal(true)}
                 className="text-xs"
               >
-                <Phone className="w-3.5 h-3.5 text-blue-600 mr-1.5" />
-                <span>Update Phone</span>
+                Update Phone
               </Button>
             </div>
 
@@ -140,16 +132,16 @@ export default function PatientDashboard() {
         </Card>
 
         {/* Current Active Visit Status Card */}
-        <div className="js-reveal">
+        <div>
           <VisitStatusCard session={activeSession} />
         </div>
 
         {/* Longitudinal Records List */}
-        <div className="js-reveal space-y-4">
+        <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2 gap-2">
             <div>
               <h2 className="text-base font-bold text-slate-900">Personal Health Records Timeline</h2>
-              <p className="text-xs text-slate-500">Longitudinal consultations and plain-English medical guidance.</p>
+              <p className="text-xs text-slate-500">Longitudinal consultations and clinical summaries.</p>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -158,8 +150,7 @@ export default function PatientDashboard() {
                 onClick={() => setShowUploadModal(true)}
                 className="text-xs"
               >
-                <Upload className="w-3.5 h-3.5 text-blue-600 mr-1" />
-                <span>Add Record</span>
+                Add Record
               </Button>
               <span className="text-xs text-slate-500 font-medium">{records.length} Records</span>
             </div>
@@ -177,26 +168,20 @@ export default function PatientDashboard() {
                 <Card key={rec.id} className="bg-white border-slate-200 hover:border-slate-300 transition-colors">
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="default" className="bg-blue-600 capitalize">
-                          {rec.type.replace('_', ' ')}
-                        </Badge>
-                        <span className="text-xs text-slate-500">
-                          {rec.hospitalName || '—'}
-                        </span>
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                        <span className="capitalize">{rec.type.replace('_', ' ')}</span>
+                        <span className="text-slate-500 font-normal">{rec.hospitalName || '—'}</span>
                       </div>
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="text-xs gap-1 text-blue-600"
+                        className="text-xs text-blue-600"
                         onClick={() => setSelectedRecord(rec)}
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>View Explanation & Vitals</span>
+                        View Explanation & Vitals
                       </Button>
                     </div>
 
-                    {/* Vitals snapshot */}
                     {rec.vitals && Object.values(rec.vitals).some((v) => v !== null && v !== undefined) && (
                       <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                         {rec.vitals.bloodPressure && (
@@ -237,16 +222,13 @@ export default function PatientDashboard() {
           <Dialog
             isOpen={!!selectedRecord}
             onClose={() => setSelectedRecord(null)}
-            title="Clinical Record Details & Patient Advice"
+            title="Clinical Record Details & Advice"
             maxWidth="lg"
           >
             <div className="space-y-4 text-xs text-slate-800">
-              {/* Document Header & Type Badge */}
               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <div>
-                  <Badge variant="default" className="bg-blue-600 capitalize">
-                    {selectedRecord.type.replace('_', ' ')}
-                  </Badge>
+                  <span className="font-bold capitalize">{selectedRecord.type.replace('_', ' ')}</span>
                   <p className="text-slate-500 font-medium text-[11px] mt-1">
                     Facility: <span className="font-semibold text-slate-700">{selectedRecord.hospitalName || 'Patient Upload'}</span>
                   </p>
@@ -262,31 +244,30 @@ export default function PatientDashboard() {
                 )}
               </div>
 
-              {/* Patient Vitals (if recorded) */}
               {selectedRecord.vitals && Object.values(selectedRecord.vitals).some((v) => v !== null && v !== undefined) && (
-                <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 space-y-2">
-                  <h5 className="font-bold text-blue-900 text-xs">Vitals Recorded During Consultation:</h5>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                  <h5 className="font-bold text-slate-900 text-xs">Vitals Recorded During Consultation:</h5>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     {selectedRecord.vitals.bloodPressure && (
-                      <div className="bg-white p-2 rounded-lg border border-blue-100">
+                      <div className="bg-white p-2 rounded-lg border border-slate-200">
                         <span className="text-[10px] text-slate-400 block font-semibold">Blood Pressure</span>
                         <span className="font-bold text-slate-800">{selectedRecord.vitals.bloodPressure}</span>
                       </div>
                     )}
                     {selectedRecord.vitals.heartRate && (
-                      <div className="bg-white p-2 rounded-lg border border-blue-100">
+                      <div className="bg-white p-2 rounded-lg border border-slate-200">
                         <span className="text-[10px] text-slate-400 block font-semibold">Heart Rate</span>
                         <span className="font-bold text-slate-800">{selectedRecord.vitals.heartRate} bpm</span>
                       </div>
                     )}
                     {selectedRecord.vitals.temperature && (
-                      <div className="bg-white p-2 rounded-lg border border-blue-100">
+                      <div className="bg-white p-2 rounded-lg border border-slate-200">
                         <span className="text-[10px] text-slate-400 block font-semibold">Temperature</span>
                         <span className="font-bold text-slate-800">{selectedRecord.vitals.temperature} °F</span>
                       </div>
                     )}
                     {selectedRecord.vitals.spo2 && (
-                      <div className="bg-white p-2 rounded-lg border border-blue-100">
+                      <div className="bg-white p-2 rounded-lg border border-slate-200">
                         <span className="text-[10px] text-slate-400 block font-semibold">SpO2</span>
                         <span className="font-bold text-slate-800">{selectedRecord.vitals.spo2}%</span>
                       </div>
@@ -295,7 +276,6 @@ export default function PatientDashboard() {
                 </div>
               )}
 
-              {/* Embedded Document Viewer + Page-wise AI Summaries + Disclaimer Notice */}
               <EmbeddedDocumentViewer
                 primaryUrl={selectedRecord.sourceFileUrl}
                 attachments={selectedRecord.attachments}
@@ -332,9 +312,7 @@ export default function PatientDashboard() {
             onClose={() => setShowUploadModal(false)}
             patientId={patient.id}
             patientName={patient.name}
-            onUploadSuccess={() => {
-              // Real-time listener automatically updates records
-            }}
+            onUploadSuccess={() => {}}
           />
         )}
 

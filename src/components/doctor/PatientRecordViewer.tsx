@@ -12,9 +12,11 @@ import {
   Patient,
   MedicalRecordDoc,
 } from '../../lib/firestore';
-import { User, Phone, FileText, Activity, Heart, Thermometer, Wind, Weight, Eye, ArrowLeft, Building2, Stethoscope, AlertTriangle } from 'lucide-react';
-
+import { Phone, FileText, Eye, ArrowLeft, Building2, AlertTriangle, Brain, ChevronRight } from 'lucide-react';
 import { EmbeddedDocumentViewer } from '../patient/EmbeddedDocumentViewer';
+import { DoctorIntelligencePanel } from '../../pages/doctor/DoctorIntelligencePanel';
+import { PatientMemory } from '../../lib/hindsight';
+import { useAuth } from '../../context/AuthContext';
 
 interface PatientRecordViewerProps {
   opNumber: string;
@@ -27,9 +29,11 @@ export const PatientRecordViewer: React.FC<PatientRecordViewerProps> = ({ opNumb
   const [patient, setPatient] = useState<Patient | null>(null);
   const [hospitalName, setHospitalName] = useState<string>('');
   const [records, setRecords] = useState<MedicalRecordDoc[]>([]);
+  const [activeTab, setActiveTab] = useState<'records' | 'agent'>('agent');
 
   // Modal for view-only original document viewing & page-wise AI summary
   const [viewingRecord, setViewingRecord] = useState<MedicalRecordDoc | null>(null);
+  const { currentStaff } = useAuth();
 
   useEffect(() => {
     async function loadData() {
@@ -78,6 +82,56 @@ export const PatientRecordViewer: React.FC<PatientRecordViewerProps> = ({ opNumb
     );
   }
 
+  // Build PatientMemory from Firestore patient + records for the Hindsight agent
+  const patientMemory: PatientMemory = {
+    patientId: patient.id,
+    patientName: patient.name,
+    conditions: [],
+    medications: [],
+    allergies: patient.allergies || [],
+    familyHistory: [],
+    pastTreatments: records
+      .filter((r) => r.aiExplanation)
+      .slice(0, 10)
+      .map((r) => ({
+        date: r.date?.seconds
+          ? new Date(r.date.seconds * 1000).toLocaleDateString('en-IN')
+          : 'Recent',
+        condition: r.type.replace('_', ' '),
+        treatment:
+          typeof r.aiExplanation === 'object'
+            ? r.aiExplanation.summary || 'Document uploaded'
+            : String(r.aiExplanation || 'Document uploaded'),
+        outcome:
+          typeof r.aiExplanation === 'object' && r.aiExplanation.keyFindings?.length > 0
+            ? r.aiExplanation.keyFindings[0]
+            : 'Under monitoring',
+      })),
+    visitCount: records.length,
+    lastVisitDate:
+      records[0]?.date?.seconds
+        ? new Date(records[0].date.seconds * 1000).toLocaleDateString('en-IN')
+        : undefined,
+  };
+
+  const doctorId = currentStaff?.id || session.doctorId || 'unknown';
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 16px',
+    borderRadius: '8px 8px 0 0',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 700,
+    transition: 'all 0.2s',
+    background: active ? '#ffffff' : 'transparent',
+    color: active ? '#1e293b' : '#64748b',
+    borderBottom: active ? '2px solid #6d28d9' : '2px solid transparent',
+  });
+
   return (
     <div className="space-y-6">
       {/* Top Navigation Bar */}
@@ -103,6 +157,13 @@ export const PatientRecordViewer: React.FC<PatientRecordViewerProps> = ({ opNumb
                 <h2 className="text-xl font-bold text-slate-900">{patient.name}</h2>
                 <Badge variant="secondary">Blood Group {patient.bloodGroup}</Badge>
                 <Badge variant="outline">{patient.age} Yrs</Badge>
+                <Badge
+                  variant="secondary"
+                  className="bg-violet-50 text-violet-700 border-violet-200 flex items-center gap-1"
+                >
+                  <Brain className="w-3 h-3" />
+                  {records.length} Visit{records.length !== 1 ? 's' : ''} in Memory
+                </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
                 <span className="flex items-center gap-1">
@@ -127,121 +188,175 @@ export const PatientRecordViewer: React.FC<PatientRecordViewerProps> = ({ opNumb
         </CardContent>
       </Card>
 
-      {/* Longitudinal Clinical Record Timeline */}
-      <Card className="bg-white border-slate-200">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-600" />
-            <span>Longitudinal Health & Diagnostic Records</span>
-          </CardTitle>
-          <CardDescription>
-            Read-only clinical history for attending physician evaluation.
-          </CardDescription>
-        </CardHeader>
+      {/* Tabs */}
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 4,
+            borderBottom: '2px solid #e2e8f0',
+            marginBottom: -2,
+            paddingLeft: 4,
+          }}
+        >
+          <button id="tab-agent" style={tabStyle(activeTab === 'agent')} onClick={() => setActiveTab('agent')}>
+            <Brain size={15} />
+            🧠 AI Agent
+            {activeTab !== 'agent' && <ChevronRight size={12} />}
+          </button>
+          <button id="tab-records" style={tabStyle(activeTab === 'records')} onClick={() => setActiveTab('records')}>
+            <FileText size={15} />
+            📋 Clinical Records
+            {records.length > 0 && (
+              <span
+                style={{
+                  background: '#3b82f6',
+                  color: '#fff',
+                  borderRadius: 10,
+                  padding: '1px 6px',
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {records.length}
+              </span>
+            )}
+          </button>
+        </div>
 
-        <CardContent className="space-y-6">
-          {records.length === 0 ? (
-            <p className="text-xs text-slate-500 text-center py-6">
-              No historical medical records uploaded for this patient yet.
-            </p>
-          ) : (
-            records.map((rec) => (
-              <div key={rec.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="capitalize bg-blue-600">
-                      {rec.type.replace('_', ' ')}
-                    </Badge>
-                    <span className="text-xs text-slate-500 font-medium">
-                      {rec.date?.seconds
-                        ? new Date(rec.date.seconds * 1000).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        : 'Recent'}
-                    </span>
-                  </div>
-
-                  {/* View Original File & AI Summary Button */}
-                  {(rec.sourceFileUrl || rec.attachments) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs gap-1 hover:bg-slate-100"
-                      onClick={() => setViewingRecord(rec)}
-                    >
-                      <Eye className="w-3.5 h-3.5 text-blue-600" />
-                      <span>View Files & AI Summary</span>
-                    </Button>
-                  )}
-                </div>
-
-                {/* Vitals Summary if present */}
-                {rec.vitals && Object.values(rec.vitals).some((v) => v !== null && v !== undefined) && (
-                  <div className="bg-white p-3 rounded-lg border border-slate-200 grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
-                    {rec.vitals.bloodPressure && (
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Blood Pressure</span>
-                        <span className="font-bold text-slate-800">{rec.vitals.bloodPressure}</span>
-                      </div>
-                    )}
-                    {rec.vitals.heartRate && (
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Heart Rate</span>
-                        <span className="font-bold text-slate-800">{rec.vitals.heartRate} bpm</span>
-                      </div>
-                    )}
-                    {rec.vitals.temperature && (
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Temperature</span>
-                        <span className="font-bold text-slate-800">{rec.vitals.temperature} °F</span>
-                      </div>
-                    )}
-                    {rec.vitals.spo2 && (
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-400 block font-semibold">SpO2</span>
-                        <span className="font-bold text-slate-800">{rec.vitals.spo2}%</span>
-                      </div>
-                    )}
-                    {rec.vitals.weight && (
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Weight</span>
-                        <span className="font-bold text-slate-800">{rec.vitals.weight} kg</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Clinical Overview */}
-                {rec.aiExplanation && (
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                      MediPass AI Clinical Summary:
-                    </span>
-                    <p className="font-sans text-xs bg-white p-3 rounded-lg border border-slate-200 text-slate-800 leading-relaxed font-medium">
-                      {typeof rec.aiExplanation === 'object' ? rec.aiExplanation.summary : rec.aiExplanation}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))
+        <div style={{ paddingTop: 20 }}>
+          {/* ── AI Agent Tab ── */}
+          {activeTab === 'agent' && (
+            <DoctorIntelligencePanel
+              patientId={patient.id}
+              patientMemory={patientMemory}
+              doctorId={doctorId}
+            />
           )}
-        </CardContent>
-      </Card>
+
+          {/* ── Records Tab ── */}
+          {activeTab === 'records' && (
+            <Card className="bg-white border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span>Longitudinal Health &amp; Diagnostic Records</span>
+                </CardTitle>
+                <CardDescription>
+                  Read-only clinical history for attending physician evaluation.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                {records.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-6">
+                    No historical medical records uploaded for this patient yet.
+                  </p>
+                ) : (
+                  records.map((rec) => (
+                    <div key={rec.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="capitalize bg-blue-600">
+                            {rec.type.replace('_', ' ')}
+                          </Badge>
+                          <span className="text-xs text-slate-500 font-medium">
+                            {rec.date?.seconds
+                              ? new Date(rec.date.seconds * 1000).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })
+                              : 'Recent'}
+                          </span>
+                        </div>
+
+                        {(rec.sourceFileUrl || rec.attachments) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs gap-1 hover:bg-slate-100"
+                            onClick={() => setViewingRecord(rec)}
+                          >
+                            <Eye className="w-3.5 h-3.5 text-blue-600" />
+                            <span>View Files &amp; AI Summary</span>
+                          </Button>
+                        )}
+                      </div>
+
+                      {rec.vitals &&
+                        Object.values(rec.vitals).some((v) => v !== null && v !== undefined) && (
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                            {rec.vitals.bloodPressure && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] text-slate-400 block font-semibold">Blood Pressure</span>
+                                <span className="font-bold text-slate-800">{rec.vitals.bloodPressure}</span>
+                              </div>
+                            )}
+                            {rec.vitals.heartRate && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] text-slate-400 block font-semibold">Heart Rate</span>
+                                <span className="font-bold text-slate-800">{rec.vitals.heartRate} bpm</span>
+                              </div>
+                            )}
+                            {rec.vitals.temperature && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] text-slate-400 block font-semibold">Temperature</span>
+                                <span className="font-bold text-slate-800">{rec.vitals.temperature} °F</span>
+                              </div>
+                            )}
+                            {rec.vitals.spo2 && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] text-slate-400 block font-semibold">SpO2</span>
+                                <span className="font-bold text-slate-800">{rec.vitals.spo2}%</span>
+                              </div>
+                            )}
+                            {rec.vitals.weight && (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] text-slate-400 block font-semibold">Weight</span>
+                                <span className="font-bold text-slate-800">{rec.vitals.weight} kg</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                      {rec.aiExplanation && (
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                            MediPass AI Clinical Summary:
+                          </span>
+                          <p className="font-sans text-xs bg-white p-3 rounded-lg border border-slate-200 text-slate-800 leading-relaxed font-medium">
+                            {typeof rec.aiExplanation === 'object'
+                              ? rec.aiExplanation.summary
+                              : rec.aiExplanation}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Embedded Multi-File Document Viewer Dialog for Doctor */}
       {viewingRecord && (
         <Dialog
           isOpen={!!viewingRecord}
           onClose={() => setViewingRecord(null)}
-          title="Clinical Document Scans & Page-Wise Summary"
+          title="Clinical Document Scans &amp; Page-Wise Summary"
           maxWidth="lg"
         >
           <EmbeddedDocumentViewer
             primaryUrl={viewingRecord.sourceFileUrl}
             attachments={viewingRecord.attachments}
-            aiExplanation={typeof viewingRecord.aiExplanation === 'object' ? viewingRecord.aiExplanation : { summary: viewingRecord.aiExplanation }}
+            aiExplanation={
+              typeof viewingRecord.aiExplanation === 'object'
+                ? viewingRecord.aiExplanation
+                : { summary: viewingRecord.aiExplanation }
+            }
             hospitalName={hospitalName}
             docTypeLabel={viewingRecord.type}
           />

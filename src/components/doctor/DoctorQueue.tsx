@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/Card';
-import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Session, subscribeToDoctorQueue, updateSessionStatus } from '../../lib/firestore';
-import { Stethoscope, Clock, Eye, CheckCircle2, User } from 'lucide-react';
+import { Session, subscribeToDoctorQueue } from '../../lib/firestore';
 
 interface DoctorQueueProps {
   hospitalId: string;
@@ -29,7 +27,6 @@ export const DoctorQueue: React.FC<DoctorQueueProps> = ({
   }, [hospitalId, doctorId]);
 
   const handleOpenPatientDetail = (opNumber: string) => {
-    // Opening patient record strictly inspects details without modifying visit status
     onSelectPatient(opNumber);
   };
 
@@ -37,13 +34,12 @@ export const DoctorQueue: React.FC<DoctorQueueProps> = ({
     <Card className="bg-white border-slate-200">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-blue-600" />
-            <span>Today's OPD Consultation Queue</span>
+          <CardTitle className="text-base">
+            Today's OPD Consultation Queue
           </CardTitle>
-          <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+          <span className="text-xs font-semibold text-slate-700">
             {sessions.length} Assigned Patients
-          </Badge>
+          </span>
         </div>
         <CardDescription>
           Checked-in patients waiting for consultation. Click "View Records" to open clinical timeline.
@@ -67,15 +63,9 @@ export const DoctorQueue: React.FC<DoctorQueueProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 text-sm">{s.patientName || 'Patient'}</span>
-                    {s.status === 'checked_in' ? (
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                        Checked In
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Consulted
-                      </Badge>
-                    )}
+                    <span className="text-xs font-medium text-slate-600">
+                      {s.status === 'checked_in' ? 'Checked In' : 'Consulted'}
+                    </span>
                   </div>
 
                   <div className="space-y-1 text-xs text-slate-600">
@@ -95,8 +85,7 @@ export const DoctorQueue: React.FC<DoctorQueueProps> = ({
                   className="w-full mt-2"
                   onClick={() => handleOpenPatientDetail(s.opNumber)}
                 >
-                  <Eye className="w-3.5 h-3.5 mr-1.5" />
-                  <span>View Records & History</span>
+                  View Records & History
                 </Button>
               </div>
             ))}

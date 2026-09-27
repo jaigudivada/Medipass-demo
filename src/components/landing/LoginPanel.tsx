@@ -9,7 +9,7 @@ export const LoginPanel: React.FC = () => {
   const [activeRole, setActiveRole] = useState<UserRole>('patient');
 
   return (
-    <div className="w-full max-w-md bg-white border border-[#E2E4E9] rounded-2xl p-6 sm:p-8 shadow-sm">
+    <div className="w-full max-w-md bg-white border border-[#E2E4E9] rounded-2xl p-6 sm:p-8 shadow-sm relative">
       <div className="mb-5 text-left">
         <h2 className="text-xl font-bold tracking-tight text-[#1A1D23]">
           Sign in to MediPass

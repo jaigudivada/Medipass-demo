@@ -2,6 +2,7 @@ import { uploadFileToCloudinary } from './cloudinary';
 import { createRecordDoc, updateRecordExplanation, MedicalRecordDoc, PatientVitals } from './firestore';
 import { processDocumentOcr } from './ocr';
 import { generateAiExplanation, analyzeDocumentViaGroqVision, analyzeMultipleDocumentsViaVision } from './aiExplainer';
+import { retainDocumentInMemory, initializePatientMemoryBank } from './hindsight';
 
 export interface UploadProgressInfo {
   step: 'idle' | 'uploading' | 'ocr' | 'ai' | 'saving' | 'completed' | 'failed';
@@ -397,6 +398,24 @@ export async function executeReceptionUploadPipeline(
     await updateRecordExplanation(recordId, aiExplanation, combinedExtractedText, 'completed');
   } catch (updateErr) {
     console.warn('[UploadService] Failed to update record explanation:', updateErr);
+  }
+
+  // Feed to Hindsight agent memory so doctor's AI has permanent recall of this document
+  try {
+    await initializePatientMemoryBank(patientId, patientId); // idempotent init
+    await retainDocumentInMemory(patientId, {
+      type: documentType,
+      ocrText: combinedExtractedText,
+      aiSummary: aiExplanation?.summary || 'Document uploaded',
+      keyFindings: aiExplanation?.keyFindings || [],
+      medications: aiExplanation?.medicationGuidance || [],
+      warnings: aiExplanation?.warnings || [],
+      uploadedAt: new Date().toLocaleDateString('en-IN'),
+    });
+    console.log('[UploadService] Document retained in Hindsight memory for patient:', patientId);
+  } catch (hindsightErr) {
+    console.warn('[UploadService] Hindsight memory retain skipped:', hindsightErr);
+    // Non-blocking — Hindsight failure does not break the upload
   }
 
   onProgress({
