@@ -34,8 +34,12 @@ export const LoginPanel: React.FC = () => {
           <StaffLoginForm role="receptionist" />
         </TabsContent>
 
-        <TabsContent value="admin">
-          <StaffLoginForm role="admin" />
+        <TabsContent value="main_admin">
+          <StaffLoginForm role="main_admin" />
+        </TabsContent>
+
+        <TabsContent value="hospital_admin">
+          <StaffLoginForm role="hospital_admin" />
         </TabsContent>
       </Tabs>
     </div>

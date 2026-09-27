@@ -13,7 +13,7 @@ import {
   getPatientByPhone,
 } from '../lib/firestore';
 
-export type UserRole = 'patient' | 'doctor' | 'receptionist' | 'admin';
+export type UserRole = 'patient' | 'doctor' | 'receptionist' | 'main_admin' | 'hospital_admin' | 'admin';
 
 export interface UserSession {
   role: UserRole;
@@ -50,6 +50,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resolveUserRole = async (user: User | null) => {
     if (!user) {
+      const demoPhone = localStorage.getItem('medipass_demo_patient_phone');
+      if (demoPhone) {
+        let patient: Patient | null = null;
+        try {
+          patient = await getPatientByPhone(demoPhone);
+        } catch (err) {
+          console.warn('[AuthContext] Demo patient lookup error, using fallback:', err);
+        }
+        if (!patient) {
+          patient = {
+            id: 'patient_001',
+            name: 'Jai Gudivada',
+            phone: demoPhone.startsWith('+91') ? demoPhone : `+91${demoPhone}`,
+            age: 28,
+            bloodGroup: 'O+',
+            allergies: ['Penicillin'],
+          };
+        }
+        setCurrentPatient(patient);
+        setCurrentStaff(null);
+        setIsHospitalInactive(false);
+        setIsLoading(false);
+        return;
+      }
       setCurrentStaff(null);
       setCurrentPatient(null);
       setIsHospitalInactive(false);
@@ -82,7 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { collection, query, where, getDocs, updateDoc, addDoc } = await import('firebase/firestore');
           const { db } = await import('../lib/firebase');
 
-          const q = query(collection(db, 'staff'), where('email', '==', user.email.toLowerCase()));
+          const userEmail = user.email.toLowerCase();
+          const q = query(collection(db, 'staff'), where('email', '==', userEmail));
           const snap = await getDocs(q);
 
           if (!snap.empty) {
@@ -91,14 +116,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const updatedStaff = { id: existingDoc.id, ...existingDoc.data(), authUid: user.uid } as Staff;
             setCurrentStaff(updatedStaff);
             setCurrentPatient(null);
-          } else if (user.email.includes('admin') || user.email.includes('hospital')) {
-            // Auto-provision initial Admin staff document
+          } else if (userEmail.includes('admin') || userEmail.includes('hospital')) {
+            const isMain = userEmail.includes('admin@medipass.demo');
+            const roleToAssign: UserRole = isMain ? 'main_admin' : 'hospital_admin';
             const newStaffData: Omit<Staff, 'id'> = {
               authUid: user.uid,
-              name: 'System Administrator',
-              email: user.email.toLowerCase(),
-              role: 'admin',
-              hospitalId: 'hosp-1',
+              name: isMain ? 'Main System Administrator' : 'Hospital Administrator',
+              email: userEmail,
+              role: roleToAssign as any,
+              hospitalId: userEmail.includes('apollo') ? 'apollo_hosp_001' : 'fortis_hosp_002',
               status: 'active',
             };
             const ref = await addDoc(collection(db, 'staff'), newStaffData);
@@ -128,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Real-time tracking of hospital active status for non-admin staff members
   useEffect(() => {
-    if (!currentStaff || currentStaff.role === 'admin' || !currentStaff.hospitalId) {
+    if (!currentStaff || currentStaff.role === 'admin' || (currentStaff.role as string) === 'main_admin' || !currentStaff.hospitalId) {
       setIsHospitalInactive(false);
       return;
     }
@@ -164,7 +190,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setIsLoading(true);
-    await firebaseSignOut(auth);
+    localStorage.removeItem('medipass_demo_patient_phone');
+    await firebaseSignOut(auth).catch(() => {});
     setFirebaseUser(null);
     setCurrentStaff(null);
     setCurrentPatient(null);

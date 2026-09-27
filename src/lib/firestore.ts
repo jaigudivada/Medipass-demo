@@ -464,30 +464,41 @@ export function subscribeToPatientRecords(
     where('patientId', '==', patientId)
   );
 
-  return onSnapshot(q, async (snap) => {
-    const rawRecords = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MedicalRecordDoc));
-    
-    // Resolve hospital names for UI display
-    const resolved = await Promise.all(
-      rawRecords.map(async (r) => {
-        let hospitalName = 'Medical Center';
-        if (r.hospitalId) {
-          const h = await getHospitalById(r.hospitalId);
-          if (h) hospitalName = h.name;
-        }
-        return { ...r, hospitalName };
-      })
-    );
+  return onSnapshot(
+    q,
+    async (snap) => {
+      const rawRecords = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MedicalRecordDoc));
+      
+      // Resolve hospital names for UI display
+      const resolved = await Promise.all(
+        rawRecords.map(async (r) => {
+          let hospitalName = 'Medical Center';
+          if (r.hospitalId) {
+            try {
+              const h = await getHospitalById(r.hospitalId);
+              if (h) hospitalName = h.name;
+            } catch (err) {
+              console.warn('[Firestore] Hospital lookup error:', err);
+            }
+          }
+          return { ...r, hospitalName };
+        })
+      );
 
-    // Sort descending by date/createdAt locally
-    resolved.sort((a, b) => {
-      const tA = a.createdAt?.seconds || 0;
-      const tB = b.createdAt?.seconds || 0;
-      return tB - tA;
-    });
+      // Sort descending by date/createdAt locally
+      resolved.sort((a, b) => {
+        const tA = a.createdAt?.seconds || 0;
+        const tB = b.createdAt?.seconds || 0;
+        return tB - tA;
+      });
 
-    onUpdate(resolved);
-  });
+      onUpdate(resolved);
+    },
+    (err) => {
+      console.warn('[Firestore] subscribeToPatientRecords warning:', err);
+      onUpdate([]);
+    }
+  );
 }
 
 export function subscribeToActivePatientSession(
@@ -500,26 +511,41 @@ export function subscribeToActivePatientSession(
     where('status', 'in', ['registered', 'checked_in', 'consulted', 'admitted'])
   );
 
-  return onSnapshot(q, async (snap) => {
-    if (snap.empty) {
+  return onSnapshot(
+    q,
+    async (snap) => {
+      if (snap.empty) {
+        onUpdate(null);
+        return;
+      }
+      const docSnap = snap.docs[0];
+      const s = { id: docSnap.id, ...docSnap.data() } as Session;
+      
+      let hospitalName = 'Hospital';
+      let doctorName = 'Assigned Doctor';
+
+      if (s.hospitalId) {
+        try {
+          const h = await getHospitalById(s.hospitalId);
+          if (h) hospitalName = h.name;
+        } catch (err) {
+          console.warn('[Firestore] Hospital lookup error:', err);
+        }
+      }
+      if (s.doctorId) {
+        try {
+          const dSnap = await getDoc(doc(db, 'staff', s.doctorId));
+          if (dSnap.exists()) doctorName = dSnap.data().name;
+        } catch (err) {
+          console.warn('[Firestore] Doctor lookup error:', err);
+        }
+      }
+
+      onUpdate({ ...s, hospitalName, doctorName });
+    },
+    (err) => {
+      console.warn('[Firestore] subscribeToActivePatientSession warning:', err);
       onUpdate(null);
-      return;
     }
-    const docSnap = snap.docs[0];
-    const s = { id: docSnap.id, ...docSnap.data() } as Session;
-    
-    let hospitalName = 'Hospital';
-    let doctorName = 'Assigned Doctor';
-
-    if (s.hospitalId) {
-      const h = await getHospitalById(s.hospitalId);
-      if (h) hospitalName = h.name;
-    }
-    if (s.doctorId) {
-      const dSnap = await getDoc(doc(db, 'staff', s.doctorId));
-      if (dSnap.exists()) doctorName = dSnap.data().name;
-    }
-
-    onUpdate({ ...s, hospitalName, doctorName });
-  });
+  );
 }

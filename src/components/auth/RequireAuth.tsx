@@ -10,7 +10,7 @@ interface RequireAuthProps {
 }
 
 export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
-  const { firebaseUser, role, isHospitalInactive, logout, isLoading } = useAuth();
+  const { firebaseUser, currentPatient, role, isHospitalInactive, logout, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -22,12 +22,12 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
     );
   }
 
-  if (!firebaseUser) {
+  if (!firebaseUser && !currentPatient) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   // Block staff from accessing operational dashboard if their hospital is inactive
-  if (isHospitalInactive && role !== 'admin') {
+  if (isHospitalInactive && role !== 'admin' && (role as string) !== 'main_admin') {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
         <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
@@ -70,6 +70,8 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
       patient: '/patient',
       doctor: '/doctor',
       receptionist: '/reception',
+      main_admin: '/main-admin',
+      hospital_admin: '/hospital-admin',
       admin: '/admin',
     };
     return <Navigate to={routeMap[role] || '/'} replace />;

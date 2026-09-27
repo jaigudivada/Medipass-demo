@@ -5,7 +5,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 
 interface StaffLoginFormProps {
-  role: 'doctor' | 'receptionist' | 'admin';
+  role: 'doctor' | 'receptionist' | 'main_admin' | 'hospital_admin' | 'admin';
   presetEmail?: string;
   presetPassword?: string;
 }
@@ -38,9 +38,11 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
       const routeMap: Record<typeof role, string> = {
         doctor: '/doctor',
         receptionist: '/reception',
+        main_admin: '/main-admin',
+        hospital_admin: '/hospital-admin',
         admin: '/admin',
       };
-      navigate(routeMap[role]);
+      navigate(routeMap[role] || '/admin');
     } catch (err: any) {
       console.error('[StaffLoginForm] Login error:', err);
 
@@ -58,7 +60,7 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
         const { doc, setDoc } = await import('firebase/firestore');
         const { db } = await import('../../lib/firebase');
         
-        const isMainAdmin = emailToUse.includes('admin@medipass.demo');
+        const isMainAdmin = role === 'main_admin' || emailToUse.includes('admin@medipass.demo');
         const hospId = emailToUse.includes('apollo') ? 'apollo_hosp_001' : 'fortis_hosp_002';
 
         await setDoc(
@@ -78,9 +80,11 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
         const routeMap: Record<typeof role, string> = {
           doctor: '/doctor',
           receptionist: '/reception',
+          main_admin: '/main-admin',
+          hospital_admin: '/hospital-admin',
           admin: '/admin',
         };
-        navigate(routeMap[role]);
+        navigate(routeMap[role] || '/admin');
         return;
       } catch (createErr: any) {
         console.error('[StaffLoginForm] Auto creation error:', createErr);
@@ -104,7 +108,9 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
   const roleTitles: Record<typeof role, string> = {
     doctor: 'Doctor Portal',
     receptionist: 'Desk Reception Portal',
-    admin: 'Hospital Admin Portal',
+    main_admin: 'Main Admin Portal',
+    hospital_admin: 'Hospital Admin Portal',
+    admin: 'Admin Portal',
   };
 
   return (
@@ -153,19 +159,38 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
           </button>
         )}
 
-        {role === 'admin' && (
+        {(role === 'main_admin' || role === 'admin') && (
+          <button
+            type="button"
+            onClick={() => doLogin('admin@medipass.demo', 'MediPass@123Main')}
+            disabled={loading}
+            className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
+          >
+            <div>
+              <div className="text-xs font-semibold text-gray-900">
+                Main System Administrator
+              </div>
+              <div className="text-[11px] text-gray-500">Super Admin • admin@medipass.demo</div>
+            </div>
+            <span className="text-xs font-medium text-blue-600">
+              Login
+            </span>
+          </button>
+        )}
+
+        {role === 'hospital_admin' && (
           <div className="space-y-2">
             <button
               type="button"
-              onClick={() => doLogin('admin@medipass.demo', 'MediPass@123Main')}
+              onClick={() => doLogin('admin@apollo.demo', 'MediPass@123HospAdmin')}
               disabled={loading}
               className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
             >
               <div>
                 <div className="text-xs font-semibold text-gray-900">
-                  Super Main Admin
+                  Apollo Hospital Admin
                 </div>
-                <div className="text-[11px] text-gray-500">Network Admin • admin@medipass.demo</div>
+                <div className="text-[11px] text-gray-500">Apollo Health City • admin@apollo.demo</div>
               </div>
               <span className="text-xs font-medium text-blue-600">
                 Login

@@ -51,9 +51,27 @@ export default function AppRoutes() {
       />
 
       <Route
+        path="/main-admin"
+        element={
+          <RequireAuth allowedRoles={['main_admin', 'admin']}>
+            <AdminDashboard />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/hospital-admin"
+        element={
+          <RequireAuth allowedRoles={['hospital_admin', 'admin']}>
+            <AdminDashboard />
+          </RequireAuth>
+        }
+      />
+
+      <Route
         path="/admin"
         element={
-          <RequireAuth allowedRoles={['admin']}>
+          <RequireAuth allowedRoles={['main_admin', 'hospital_admin', 'admin']}>
             <AdminDashboard />
           </RequireAuth>
         }
