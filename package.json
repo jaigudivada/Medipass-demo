@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "seed": "node --import tsx src/scripts/seedMockData.ts"
+    "seed": "node --import tsx src/scripts/seedMockData.ts",
+    "seed:demo-history": "node --import tsx src/scripts/seedDemoPatientHistory.ts"
   },
   "dependencies": {
     "@vectorize-io/hindsight-client": "^0.10.1",

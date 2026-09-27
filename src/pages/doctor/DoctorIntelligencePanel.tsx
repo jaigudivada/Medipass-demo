@@ -102,8 +102,9 @@ export const DoctorIntelligencePanel: React.FC<DoctorIntelligencePanelProps> = (
     <div className="space-y-5">
       {/* Connection Status */}
       {hindsightStatus && (
-        <div className="text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 p-2.5 rounded-lg">
-          Hindsight Memory: {hindsightStatus.message}
+        <div className="text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 p-2.5 rounded-lg flex items-center justify-between">
+          <span>Hindsight Memory: {hindsightStatus.message}</span>
+          <span className="text-[11px] font-mono text-gray-500">Bank: medipass-patient-{patientId}</span>
         </div>
       )}
 
@@ -131,7 +132,7 @@ export const DoctorIntelligencePanel: React.FC<DoctorIntelligencePanelProps> = (
             onClick={() => setShowTimeline((v) => !v)}
             className="mt-3 text-xs text-indigo-300 font-medium hover:underline cursor-pointer"
           >
-            {showTimeline ? 'Hide' : 'Show'} Intelligence Growth Timeline
+            {showTimeline ? 'Hide' : 'Show'} Intelligence Growth Timeline (Static comparison)
           </button>
         )}
       </div>
@@ -163,7 +164,12 @@ export const DoctorIntelligencePanel: React.FC<DoctorIntelligencePanelProps> = (
       {analysis && (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl space-y-1.5">
-            <h4 className="text-xs font-bold text-blue-900">Analysis Summary</h4>
+            <div className="flex justify-between items-center">
+              <h4 className="text-xs font-bold text-blue-900">Analysis Summary</h4>
+              <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded font-mono">
+                {analysis.memoryUsed ? `Live Hindsight recall — medipass-patient-${patientId}` : 'First visit mode'}
+              </span>
+            </div>
             <p className="text-xs text-blue-800 leading-relaxed">{analysis.insights}</p>
           </div>
 

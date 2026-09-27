@@ -59,7 +59,7 @@ export const MemoryGrowthTimeline: React.FC<MemoryGrowthTimelineProps> = ({ visi
       <div>
         <h3 className="text-sm font-semibold">How Agent Intelligence Grows with Memory</h3>
         <p className="text-xs text-slate-400">
-          Showing learning progression across recorded visits
+          Illustrative example of memory growth (Static comparison)
         </p>
       </div>
 

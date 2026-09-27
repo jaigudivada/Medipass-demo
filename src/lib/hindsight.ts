@@ -71,19 +71,28 @@ export interface VisitHistory {
 let _hindsightClient: HindsightClient | null = null;
 let _groqClient: ReturnType<typeof getGroqClient> | null = null;
 
+function getEnv(key: string): string {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return String(import.meta.env[key]).trim();
+  }
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return String(process.env[key]).trim();
+  }
+  return '';
+}
+
 function getHindsightClient(): HindsightClient {
   if (_hindsightClient) return _hindsightClient;
-  const baseUrl =
-    (import.meta.env.VITE_HINDSIGHT_INSTANCE_URL || '').trim() ||
-    'http://localhost:8888';
-  _hindsightClient = new HindsightClient({ baseUrl });
+  const baseUrl = getEnv('VITE_HINDSIGHT_INSTANCE_URL') || 'https://api.hindsight.vectorize.io';
+  const apiKey = getEnv('VITE_HINDSIGHT_API_KEY');
+  _hindsightClient = new HindsightClient({ baseUrl, apiKey });
   return _hindsightClient;
 }
 
 function getGroqClient() {
   if (_groqClient) return _groqClient;
   _groqClient = new Groq({
-    apiKey: (import.meta.env.VITE_GROQ_API_KEY || '').trim(),
+    apiKey: getEnv('VITE_GROQ_API_KEY'),
     dangerouslyAllowBrowser: true,
   });
   return _groqClient;
@@ -133,7 +142,7 @@ Principles:
     console.log(`[Hindsight] Memory bank initialized for patient ${patientId}`);
   } catch (err: any) {
     // Bank may already exist — not fatal
-    console.warn('[Hindsight] createBank warning (may already exist):', err?.message);
+    console.warn('[HINDSIGHT DEBUG] createBank warning (may already exist):', err);
   }
 }
 
@@ -178,7 +187,7 @@ ${visitData.aiSummary ? `AI Clinical Summary:\n${visitData.aiSummary}` : ''}
 
     console.log(`[Hindsight] Visit retained in memory for patient ${patientId}`);
   } catch (err: any) {
-    console.error('[Hindsight] retain error:', err?.message);
+    console.error('[HINDSIGHT DEBUG] retainVisitInMemory error:', err);
     // Non-fatal — still continue without memory persistence
   }
 }
@@ -231,7 +240,7 @@ ${
 
     console.log(`[Hindsight] Document retained in memory for patient ${patientId}`);
   } catch (err: any) {
-    console.error('[Hindsight] document retain error:', err?.message);
+    console.error('[HINDSIGHT DEBUG] retainDocumentInMemory error:', err);
   }
 }
 
@@ -278,7 +287,7 @@ LEARNING SIGNAL: ${
 
     console.log(`[Hindsight] Treatment feedback learned for patient ${patientId}`);
   } catch (err: any) {
-    console.error('[Hindsight] feedback retain error:', err?.message);
+    console.error('[HINDSIGHT DEBUG] retainTreatmentFeedback error:', err);
   }
 }
 
@@ -326,7 +335,7 @@ export async function processVisitWithMemory(
       memoryUsed = true;
     }
   } catch (err: any) {
-    console.warn('[Hindsight] recall warning:', err?.message);
+    console.warn('[HINDSIGHT DEBUG] recall warning:', err);
     // Continue without memory — agent runs in first-visit mode
   }
 
@@ -523,7 +532,8 @@ export async function checkHindsightConnection(): Promise<{
   mode: 'cloud' | 'local' | 'unconfigured';
   message: string;
 }> {
-  const url = (import.meta.env.VITE_HINDSIGHT_INSTANCE_URL || '').trim();
+  const url = getEnv('VITE_HINDSIGHT_INSTANCE_URL');
+  const apiKey = getEnv('VITE_HINDSIGHT_API_KEY');
 
   if (!url) {
     return {
@@ -533,19 +543,28 @@ export async function checkHindsightConnection(): Promise<{
     };
   }
 
+  const isCloud = url.includes('hindsight.vectorize.io');
+  if (isCloud && !apiKey) {
+    return {
+      connected: false,
+      mode: 'cloud',
+      message: 'Hindsight Cloud requires an API key — set VITE_HINDSIGHT_API_KEY',
+    };
+  }
+
   try {
     const client = getHindsightClient();
     const version = await client.getVersion();
-    const isCloud = url.includes('hindsight.vectorize.io');
     return {
       connected: true,
       mode: isCloud ? 'cloud' : 'local',
       message: `Hindsight ${version.api_version} connected (${isCloud ? 'cloud' : 'local'})`,
     };
   } catch (err: any) {
+    console.error('[HINDSIGHT DEBUG] checkHindsightConnection failed:', err);
     return {
       connected: false,
-      mode: url.includes('hindsight.vectorize.io') ? 'cloud' : 'local',
+      mode: isCloud ? 'cloud' : 'local',
       message: `Hindsight unreachable: ${err?.message || 'connection failed'}`,
     };
   }
