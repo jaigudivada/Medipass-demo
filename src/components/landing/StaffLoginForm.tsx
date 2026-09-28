@@ -33,18 +33,18 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
     setEmail(emailToUse);
     setPassword(passToUse);
 
-    localStorage.removeItem('medipass_demo_patient_phone');
-
     try {
-      await loginStaff(emailToUse.trim(), passToUse);
-      const routeMap: Record<typeof role, string> = {
+      const staffMember = await loginStaff(emailToUse.trim(), passToUse);
+      const userRole = staffMember?.role || role;
+
+      const routeMap: Record<string, string> = {
         doctor: '/doctor',
         receptionist: '/reception',
         main_admin: '/admin/main',
         hospital_admin: '/admin/hospital',
         admin: '/admin/main',
       };
-      navigate(routeMap[role] || '/admin/main');
+      navigate(routeMap[userRole] || '/admin/main', { replace: true });
     } catch (err: any) {
       console.error('[StaffLoginForm] Login error:', err);
 
@@ -53,49 +53,7 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
         setLoading(false);
         return;
       }
-
-      try {
-        const { createUserWithEmailAndPassword } = await import('firebase/auth');
-        const { auth } = await import('../../lib/firebase');
-        const res = await createUserWithEmailAndPassword(auth, emailToUse.trim(), passToUse);
-        
-        const { doc, setDoc } = await import('firebase/firestore');
-        const { db } = await import('../../lib/firebase');
-        
-        const isMainAdmin = role === 'main_admin' || emailToUse.includes('admin@medipass.demo');
-        const hospId = emailToUse.includes('apollo') ? 'apollo_hosp_001' : 'fortis_hosp_002';
-
-        await setDoc(
-          doc(db, 'staff', res.user.uid),
-          {
-            authUid: res.user.uid,
-            email: emailToUse.trim().toLowerCase(),
-            name: emailToUse.split('@')[0].toUpperCase(),
-            role: role,
-            hospitalId: isMainAdmin ? 'hosp-1' : hospId,
-            status: 'active',
-            createdAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-
-        const routeMap: Record<typeof role, string> = {
-          doctor: '/doctor',
-          receptionist: '/reception',
-          main_admin: '/main-admin',
-          hospital_admin: '/hospital-admin',
-          admin: '/admin',
-        };
-        navigate(routeMap[role] || '/admin');
-        return;
-      } catch (createErr: any) {
-        console.error('[StaffLoginForm] Auto creation error:', createErr);
-        if (createErr.code === 'auth/email-already-in-use') {
-          setError('Incorrect password for this account.');
-        } else {
-          setError(createErr.message || 'Invalid email or password.');
-        }
-      }
+      setError(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -117,108 +75,6 @@ export const StaffLoginForm: React.FC<StaffLoginFormProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Role Demo Actions */}
-      <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-        <div className="text-xs font-semibold text-gray-700">
-          Demo Login for {roleTitles[role]}
-        </div>
-
-        {role === 'doctor' && (
-          <button
-            type="button"
-            onClick={() => doLogin('dr.rajesh@apollo.demo', 'MediPass@123Doctor')}
-            disabled={loading}
-            className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
-          >
-            <div>
-              <div className="text-xs font-semibold text-gray-900">
-                Dr. Rajesh Kumar (Cardiologist)
-              </div>
-              <div className="text-[11px] text-gray-500">Apollo Health City • dr.rajesh@apollo.demo</div>
-            </div>
-            <span className="text-xs font-medium text-blue-600">
-              Login
-            </span>
-          </button>
-        )}
-
-        {role === 'receptionist' && (
-          <button
-            type="button"
-            onClick={() => doLogin('priya@apollo.demo', 'MediPass@123Recep')}
-            disabled={loading}
-            className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
-          >
-            <div>
-              <div className="text-xs font-semibold text-gray-900">
-                Priya Johnson (Receptionist)
-              </div>
-              <div className="text-[11px] text-gray-500">Apollo Health City • priya@apollo.demo</div>
-            </div>
-            <span className="text-xs font-medium text-blue-600">
-              Login
-            </span>
-          </button>
-        )}
-
-        {(role === 'main_admin' || role === 'admin') && (
-          <button
-            type="button"
-            onClick={() => doLogin('admin@medipass.demo', 'MediPass@123Main')}
-            disabled={loading}
-            className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
-          >
-            <div>
-              <div className="text-xs font-semibold text-gray-900">
-                Main System Administrator
-              </div>
-              <div className="text-[11px] text-gray-500">Super Admin • admin@medipass.demo</div>
-            </div>
-            <span className="text-xs font-medium text-blue-600">
-              Login
-            </span>
-          </button>
-        )}
-
-        {role === 'hospital_admin' && (
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => doLogin('admin@apollo.demo', 'MediPass@123HospAdmin')}
-              disabled={loading}
-              className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
-            >
-              <div>
-                <div className="text-xs font-semibold text-gray-900">
-                  Apollo Hospital Admin
-                </div>
-                <div className="text-[11px] text-gray-500">Apollo Health City • admin@apollo.demo</div>
-              </div>
-              <span className="text-xs font-medium text-blue-600">
-                Login
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => doLogin('admin@fortis.demo', 'MediPass@123HospAdmin')}
-              disabled={loading}
-              className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
-            >
-              <div>
-                <div className="text-xs font-semibold text-gray-900">
-                  Fortis Hospital Admin
-                </div>
-                <div className="text-[11px] text-gray-500">Fortis Healthcare • admin@fortis.demo</div>
-              </div>
-              <span className="text-xs font-medium text-blue-600">
-                Login
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input
           label={`${roleTitles[role]} Email`}

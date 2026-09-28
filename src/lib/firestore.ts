@@ -302,7 +302,12 @@ export async function getSessionByOpNumber(opNumber: string): Promise<Session | 
   return { id: docSnap.id, ...docSnap.data() } as Session;
 }
 
-export async function createSessionDoc(sessionData: Omit<Session, 'id'>): Promise<string> {
+export async function createSessionDoc(sessionData: Omit<Session, 'id'> & {
+  patientName?: string;
+  patientPhone?: string;
+  doctorName?: string;
+  hospitalName?: string;
+}): Promise<string> {
   const ref = await addDoc(collection(db, 'sessions'), {
     ...sessionData,
     createdAt: serverTimestamp(),
@@ -313,7 +318,8 @@ export async function createSessionDoc(sessionData: Omit<Session, 'id'>): Promis
 export async function updateSessionStatus(
   sessionId: string,
   newStatus: 'registered' | 'checked_in' | 'consulted' | 'admitted' | 'discharged',
-  doctorId?: string
+  doctorId?: string,
+  doctorName?: string
 ): Promise<void> {
   const updates: any = { status: newStatus };
   if (newStatus === 'checked_in') updates.checkedInAt = serverTimestamp();
@@ -321,6 +327,7 @@ export async function updateSessionStatus(
   if (newStatus === 'admitted') updates.admittedAt = serverTimestamp();
   if (newStatus === 'discharged') updates.dischargedAt = serverTimestamp();
   if (doctorId) updates.doctorId = doctorId;
+  if (doctorName) updates.doctorName = doctorName;
 
   await updateDoc(doc(db, 'sessions', sessionId), updates);
 }
@@ -380,40 +387,9 @@ export function subscribeToHospitalSessions(
     where('status', 'in', ['registered', 'checked_in', 'consulted', 'admitted'])
   );
 
-  return onSnapshot(q, async (snap) => {
-    const rawSessions = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Session));
-    
-    // Resolve patient & doctor names for UI display without leaking doc IDs
-    const resolved = await Promise.all(
-      rawSessions.map(async (s) => {
-        let patientName = 'Patient';
-        let patientPhone = '';
-        let doctorName = 'Unassigned';
-
-        if (s.patientId) {
-          const p = await getPatientById(s.patientId);
-          if (p) {
-            patientName = p.name;
-            patientPhone = p.phone;
-          }
-        }
-        if (s.doctorId) {
-          const docSnap = await getDoc(doc(db, 'staff', s.doctorId));
-          if (docSnap.exists()) {
-            doctorName = docSnap.data().name;
-          }
-        }
-
-        return {
-          ...s,
-          patientName,
-          patientPhone,
-          doctorName,
-        };
-      })
-    );
-
-    onUpdate(resolved);
+  return onSnapshot(q, (snap) => {
+    const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Session));
+    onUpdate(sessions);
   });
 }
 
@@ -429,29 +405,9 @@ export function subscribeToDoctorQueue(
     where('status', 'in', ['checked_in', 'consulted'])
   );
 
-  return onSnapshot(q, async (snap) => {
-    const rawSessions = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Session));
-
-    const resolved = await Promise.all(
-      rawSessions.map(async (s) => {
-        let patientName = 'Patient';
-        let patientPhone = '';
-        if (s.patientId) {
-          const p = await getPatientById(s.patientId);
-          if (p) {
-            patientName = p.name;
-            patientPhone = p.phone;
-          }
-        }
-        return {
-          ...s,
-          patientName,
-          patientPhone,
-        };
-      })
-    );
-
-    onUpdate(resolved);
+  return onSnapshot(q, (snap) => {
+    const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Session));
+    onUpdate(sessions);
   });
 }
 

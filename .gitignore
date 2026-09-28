@@ -28,3 +28,5 @@ build
 .vscode/*
 !.vscode/extensions.json
 .idea
+*.claudeplans
+C*

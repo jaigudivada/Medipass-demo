@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
   collection,
+  doc,
   query,
   where,
   onSnapshot,
@@ -69,6 +70,44 @@ export const useRealTimeListener = <T = any>({
 // ---------------------------------------------------------------------------
 // Typed Real-Time Hooks
 // ---------------------------------------------------------------------------
+
+/**
+ * Real-Time Listener for a single hospital document
+ */
+export const useHospitalDocumentListener = (
+  hospitalId: string | null | undefined,
+  onData: (hospital: any | null) => void
+) => {
+  const onDataRef = useRef(onData);
+
+  useEffect(() => {
+    onDataRef.current = onData;
+  }, [onData]);
+
+  useEffect(() => {
+    if (!hospitalId) {
+      onDataRef.current(null);
+      return;
+    }
+
+    const unsub = onSnapshot(
+      doc(db, 'hospitals', hospitalId),
+      (snap) => {
+        if (snap.exists()) {
+          onDataRef.current({ id: snap.id, ...snap.data() });
+        } else {
+          onDataRef.current(null);
+        }
+      },
+      (err) => {
+        console.error('[useHospitalDocumentListener] Error:', err);
+        onDataRef.current(null);
+      }
+    );
+
+    return () => unsub();
+  }, [hospitalId]);
+};
 
 /**
  * Main Admin: Listen to all hospitals in real-time

@@ -5,7 +5,8 @@ import { PatientRecordViewer } from '../../components/doctor/PatientRecordViewer
 import { Card, CardContent } from '../../components/ui/Card';
 import { useAuth } from '../../context/AuthContext';
 import { initPageAnimations } from '../../lib/animations';
-import { getHospitalById, Hospital } from '../../lib/firestore';
+import { Hospital } from '../../lib/firestore';
+import { useHospitalDocumentListener } from '../../hooks/useRealTimeListeners';
 
 export default function DoctorDashboard() {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -13,16 +14,8 @@ export default function DoctorDashboard() {
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [selectedOpNumber, setSelectedOpNumber] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      const targetHospitalId = currentStaff?.hospitalId || authHospitalId;
-      if (targetHospitalId) {
-        const hosp = await getHospitalById(targetHospitalId);
-        setHospital(hosp);
-      }
-    }
-    loadData();
-  }, [currentStaff, authHospitalId]);
+  const targetHospitalId = currentStaff?.hospitalId || authHospitalId;
+  useHospitalDocumentListener(targetHospitalId, setHospital);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -50,7 +43,18 @@ export default function DoctorDashboard() {
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
               {hospital && (
-                <span>{hospital.name}</span>
+                <div className="flex items-center gap-2">
+                  <span>{hospital.name}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                      hospital.status === 'active'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {hospital.status || 'active'}
+                  </span>
+                </div>
               )}
               {currentStaff && (
                 <span className="font-semibold text-slate-800 border-l border-slate-200 pl-3">

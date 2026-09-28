@@ -17,7 +17,9 @@ export default function LandingPage() {
         patient: '/patient',
         doctor: '/doctor',
         receptionist: '/reception',
-        admin: '/admin',
+        main_admin: '/admin/main',
+        hospital_admin: '/admin/hospital',
+        admin: '/admin/main',
       };
       if (routeMap[role]) {
         navigate(routeMap[role], { replace: true });

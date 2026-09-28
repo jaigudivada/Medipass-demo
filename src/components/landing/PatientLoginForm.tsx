@@ -82,16 +82,6 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
 
     const rawE164 = `+91${phoneNumber}`;
 
-    // Demo bypass for 1111111111 / test numbers
-    if (phoneNumber === '1111111111' || phoneNumber === '9876543212' || phoneNumber === '9876543210') {
-      setTimeout(() => {
-        setStep('otp');
-        setInfoMsg(`OTP code sent via SMS to +91 ${phoneNumber} (Use Demo OTP: 111111)`);
-        setLoading(false);
-      }, 500);
-      return;
-    }
-
     try {
       resetRecaptcha();
 
@@ -107,29 +97,11 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
       setStep('otp');
       setInfoMsg(`OTP code sent via SMS to +91 ${phoneNumber}`);
     } catch (err: any) {
-      console.warn('[Firebase Auth] Phone OTP warning, switching to demo verification:', err);
+      console.warn('[Firebase Auth] Phone OTP warning:', err);
       resetRecaptcha();
-      // Fallback to OTP step for demo verification
+      // Fallback to OTP step
       setStep('otp');
-      setInfoMsg(`OTP code sent to +91 ${phoneNumber} (Use Demo OTP: 111111)`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoPatientSignIn = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { signOut } = await import('firebase/auth');
-      await signOut(auth).catch(() => {});
-      const demoPhone = '+911111111111';
-      localStorage.setItem('medipass_demo_patient_phone', demoPhone);
-      await refreshAuth();
-      navigate('/patient');
-    } catch (err: any) {
-      console.error('Demo patient login error:', err);
-      setError(err?.message || 'Failed to login demo patient');
+      setInfoMsg(`OTP code sent to +91 ${phoneNumber}`);
     } finally {
       setLoading(false);
     }
@@ -147,31 +119,31 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
 
     const normPhone = `+91${phoneNumber}`;
 
-    const { signOut } = await import('firebase/auth');
-    await signOut(auth).catch(() => {});
-
-    // Demo OTP verification
-    if (otpCode === '111111' || !confirmationResult) {
-      localStorage.setItem('medipass_demo_patient_phone', normPhone);
-      await refreshAuth();
-      navigate('/patient');
-      setLoading(false);
-      return;
-    }
-
     try {
-      await confirmationResult.confirm(otpCode);
-      localStorage.setItem('medipass_demo_patient_phone', normPhone);
-      await refreshAuth();
-      navigate('/patient');
-    } catch (err: any) {
-      console.warn('[Firebase Auth] Verification failed, checking demo OTP:', err);
-      if (otpCode === '111111') {
-        localStorage.setItem('medipass_demo_patient_phone', normPhone);
+      if (confirmationResult) {
+        await confirmationResult.confirm(otpCode);
+      }
+
+      // Check if patient record exists in database
+      const existingPatient = await getPatientByPhone(normPhone);
+      if (existingPatient) {
         await refreshAuth();
         navigate('/patient');
       } else {
-        setError('Invalid OTP code. Please use 111111 for demo login.');
+        // New patient! Switch to registration form
+        setStep('register');
+        setInfoMsg('Mobile number verified! Please complete your details below to create your Patient Pass.');
+      }
+    } catch (err: any) {
+      console.warn('[Firebase Auth] Verification warning:', err);
+      // Fallback check for existing patient or transition to registration
+      const existingPatient = await getPatientByPhone(normPhone);
+      if (existingPatient) {
+        await refreshAuth();
+        navigate('/patient');
+      } else {
+        setStep('register');
+        setInfoMsg('Please complete your profile details below to register as a new patient.');
       }
     } finally {
       setLoading(false);
@@ -180,6 +152,10 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
 
   const handleRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isPhoneValid) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
     if (!regName.trim()) {
       setError('Full name is required.');
       return;
@@ -200,6 +176,15 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
         .filter(Boolean);
 
       const normPhone = `+91${phoneNumber}`;
+
+      // Check if patient already exists
+      const existing = await getPatientByPhone(normPhone);
+      if (existing) {
+        setError(`An account with mobile number ${phoneNumber} already exists. Please sign in with OTP instead.`);
+        setLoading(false);
+        return;
+      }
+
       await createPatientWithPhoneIndex({
         name: regName.trim(),
         phone: normPhone,
@@ -208,7 +193,6 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
         allergies: allergiesList,
       });
 
-      localStorage.setItem('medipass_demo_patient_phone', normPhone);
       await refreshAuth();
       navigate('/patient');
     } catch (err: any) {
@@ -222,30 +206,6 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
   return (
     <div className="space-y-4">
       <div id="recaptcha-container"></div>
-
-      {/* Demo Patient Access Card */}
-      <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-        <div className="text-xs font-semibold text-gray-700">
-          Demo Patient Access
-        </div>
-
-        <button
-          type="button"
-          onClick={handleDemoPatientSignIn}
-          disabled={loading}
-          className="w-full text-left p-2.5 bg-white border border-gray-200 hover:border-gray-400 rounded-lg transition-all flex items-center justify-between cursor-pointer"
-        >
-          <div>
-            <div className="text-xs font-semibold text-gray-900">
-              Jai Gudivada (Patient Pass)
-            </div>
-            <div className="text-[11px] text-gray-500">Phone: 1111111111 • OTP: 111111</div>
-          </div>
-          <span className="text-xs font-medium text-blue-600">
-            Login
-          </span>
-        </button>
-      </div>
 
       {step === 'phone' && (
         <form onSubmit={handleSendOtp} className="space-y-4">
@@ -281,8 +241,22 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
             className="w-full"
             disabled={loading || !isPhoneValid}
           >
-            {loading ? 'Sending OTP...' : 'Send OTP'}
+            {loading ? 'Sending OTP...' : 'Send OTP & Sign In'}
           </Button>
+
+          <div className="pt-2 text-center border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => {
+                setStep('register');
+                setError(null);
+                setInfoMsg('Please fill in your details below to create your new Patient Pass.');
+              }}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+            >
+              + New Patient? Register & Create Account
+            </button>
+          </div>
         </form>
       )}
 
@@ -339,9 +313,42 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
 
       {step === 'register' && (
         <form onSubmit={handleRegisterPatient} className="space-y-4">
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-700">
-            <p className="font-semibold">First Time Registration</p>
-            <p>Please complete your details to create your profile.</p>
+          <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100 text-xs text-blue-900 flex items-center justify-between">
+            <div>
+              <p className="font-bold text-blue-950">New Patient Registration</p>
+              <p className="text-[11px] text-blue-700">Create your portable health passport profile.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setStep('phone');
+                setError(null);
+                setInfoMsg(null);
+              }}
+              className="text-xs font-semibold text-blue-700 hover:underline cursor-pointer"
+            >
+              Sign In Instead
+            </button>
+          </div>
+
+          <div>
+            <label htmlFor="reg-phone" className="text-xs font-semibold text-[#1A1D23] block mb-1.5">
+              Mobile Phone
+            </label>
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-sm font-semibold text-[#1A1D23] select-none">
+                +91
+              </span>
+              <input
+                id="reg-phone"
+                type="tel"
+                placeholder="98765 43210"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                className="w-full pl-12 pr-3.5 py-2.5 bg-white border border-[#E2E4E9] rounded-xl text-sm font-medium text-[#1A1D23] focus:outline-none focus:border-[#2563EB]"
+                required
+              />
+            </div>
           </div>
 
           <Input
@@ -349,7 +356,10 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
             type="text"
             placeholder="e.g. Rahul Sharma"
             value={regName}
-            onChange={(e) => setRegName(e.target.value)}
+            onChange={(e) => {
+              setRegName(e.target.value);
+              setError(null);
+            }}
             required
           />
 
@@ -359,7 +369,10 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
               type="number"
               placeholder="e.g. 32"
               value={regAge}
-              onChange={(e) => setRegAge(e.target.value)}
+              onChange={(e) => {
+                setRegAge(e.target.value);
+                setError(null);
+              }}
               required
             />
 
@@ -387,6 +400,7 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
             onChange={(e) => setRegAllergies(e.target.value)}
           />
 
+          {infoMsg && <p className="text-xs text-[#0D9488] font-medium">{infoMsg}</p>}
           {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
 
           <Button
@@ -394,9 +408,9 @@ export const PatientLoginForm: React.FC<PatientLoginFormProps> = ({ presetPhone 
             variant="primary"
             size="lg"
             className="w-full"
-            disabled={loading || !regName.trim() || !regAge}
+            disabled={loading || !isPhoneValid || !regName.trim() || !regAge}
           >
-            {loading ? 'Creating Profile...' : 'Complete Profile & Continue'}
+            {loading ? 'Creating Profile...' : 'Complete Profile & Sign In'}
           </Button>
         </form>
       )}

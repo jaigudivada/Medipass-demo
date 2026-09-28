@@ -70,8 +70,8 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
       patient: '/patient',
       doctor: '/doctor',
       receptionist: '/reception',
-      main_admin: '/main-admin',
-      hospital_admin: '/hospital-admin',
+      main_admin: '/admin/main',
+      hospital_admin: '/admin/hospital',
       admin: '/admin',
     };
     return <Navigate to={routeMap[role] || '/'} replace />;

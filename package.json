@@ -8,11 +8,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "seed": "node --import tsx src/scripts/seedMockData.ts",
+    "seed:demo-data": "node --import tsx src/scripts/seedMockData.ts",
     "seed:demo-history": "node --import tsx src/scripts/seedDemoPatientHistory.ts"
   },
   "dependencies": {
     "@vectorize-io/hindsight-client": "^0.10.1",
     "clsx": "^2.1.1",
+    "dotenv": "^18.0.4",
     "firebase": "^12.19.0",
     "groq-sdk": "^1.6.0",
     "gsap": "^3.15.0",
@@ -29,6 +31,7 @@
     "@vitejs/plugin-react-swc": "^4.3.3",
     "firebase-tools": "^15.30.2",
     "tailwindcss": "^4.1.1",
+    "tsx": "^4.23.15",
     "vite": "^8.3.0"
   }
 }

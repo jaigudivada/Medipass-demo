@@ -34,7 +34,7 @@ export interface AuthContextType {
   isHospitalInactive: boolean;
   isLoading: boolean;
   isAuthenticated: boolean;
-  loginStaff: (email: string, pass: string) => Promise<void>;
+  loginStaff: (email: string, pass: string) => Promise<Staff | null>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -49,31 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const resolveUserRole = async (user: User | null) => {
-    const demoPhone = localStorage.getItem('medipass_demo_patient_phone');
-    if (demoPhone) {
-      let patient: Patient | null = null;
-      try {
-        patient = await getPatientByPhone(demoPhone);
-      } catch (err) {
-        console.warn('[AuthContext] Demo patient lookup error, using fallback:', err);
-      }
-      if (!patient) {
-        patient = {
-          id: 'patient_001',
-          name: 'Jai Gudivada',
-          phone: demoPhone.startsWith('+91') ? demoPhone : `+91${demoPhone}`,
-          age: 28,
-          bloodGroup: 'O+',
-          allergies: ['Penicillin'],
-        };
-      }
-      setCurrentPatient(patient);
-      setCurrentStaff(null);
-      setIsHospitalInactive(false);
-      setIsLoading(false);
-      return;
-    }
-
     if (!user) {
       setCurrentStaff(null);
       setCurrentPatient(null);
@@ -103,22 +78,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error('This account has been deactivated by an administrator.');
           }
 
-          // Enforce role consistency for demo credentials
-          if (userEmail.includes('admin@medipass.demo')) {
-            staff.role = 'main_admin' as any;
-          } else if (userEmail.includes('admin@apollo.demo') || userEmail.includes('admin@fortis.demo')) {
-            staff.role = 'hospital_admin' as any;
-          } else if (userEmail.includes('dr.rajesh') || userEmail.includes('dr.priya')) {
-            staff.role = 'doctor' as any;
-          } else if (userEmail.includes('priya@apollo.demo') || userEmail.includes('rahul@fortis.demo')) {
-            staff.role = 'receptionist' as any;
-          }
-
           setCurrentStaff(staff);
           setCurrentPatient(null);
         } else {
           // Check if staff record exists matching user.email without authUid set yet
-          const { collection, query, where, getDocs, updateDoc, addDoc } = await import('firebase/firestore');
+          const { collection, query, where, getDocs, updateDoc } = await import('firebase/firestore');
           const { db } = await import('../lib/firebase');
 
           const q = query(collection(db, 'staff'), where('email', '==', userEmail));
@@ -129,27 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await updateDoc(existingDoc.ref, { authUid: user.uid });
             const updatedStaff = { id: existingDoc.id, ...existingDoc.data(), authUid: user.uid } as Staff;
 
-            if (userEmail.includes('admin@medipass.demo')) {
-              updatedStaff.role = 'main_admin' as any;
-            } else if (userEmail.includes('admin@apollo.demo') || userEmail.includes('admin@fortis.demo')) {
-              updatedStaff.role = 'hospital_admin' as any;
-            }
-
             setCurrentStaff(updatedStaff);
-            setCurrentPatient(null);
-          } else if (userEmail.includes('admin') || userEmail.includes('hospital')) {
-            const isMain = userEmail.includes('admin@medipass.demo');
-            const roleToAssign: UserRole = isMain ? 'main_admin' : 'hospital_admin';
-            const newStaffData: Omit<Staff, 'id'> = {
-              authUid: user.uid,
-              name: isMain ? 'Main System Administrator' : 'Hospital Administrator',
-              email: userEmail,
-              role: roleToAssign as any,
-              hospitalId: userEmail.includes('apollo') ? 'apollo_hosp_001' : 'fortis_hosp_002',
-              status: 'active',
-            };
-            const ref = await addDoc(collection(db, 'staff'), newStaffData);
-            setCurrentStaff({ id: ref.id, ...newStaffData });
             setCurrentPatient(null);
           } else {
             setCurrentStaff(null);
@@ -198,11 +142,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, [currentStaff]);
 
-  const loginStaff = async (email: string, pass: string) => {
+  const loginStaff = async (email: string, pass: string): Promise<Staff | null> => {
     setIsLoading(true);
     try {
       const res = await signInWithEmailAndPassword(auth, email.trim(), pass);
       await resolveUserRole(res.user);
+      const staff = await getStaffByAuthUid(res.user.uid);
+      return staff;
     } catch (err: any) {
       setIsLoading(false);
       throw err;
@@ -211,7 +157,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setIsLoading(true);
-    localStorage.removeItem('medipass_demo_patient_phone');
     await firebaseSignOut(auth).catch(() => {});
     setFirebaseUser(null);
     setCurrentStaff(null);

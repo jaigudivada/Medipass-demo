@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { useAuth } from '../../context/AuthContext';
 import { initPageAnimations } from '../../lib/animations';
+import { ChatWidget } from '../../components/patient/ChatWidget';
 import {
   subscribeToActivePatientSession,
   subscribeToPatientRecords,
@@ -17,27 +18,12 @@ import {
   MedicalRecordDoc,
 } from '../../lib/firestore';
 
+
 export default function PatientDashboard() {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { currentPatient } = useAuth();
 
-  const getInitialPatient = (): Patient | null => {
-    if (currentPatient) return currentPatient;
-    const storedPhone = localStorage.getItem('medipass_demo_patient_phone');
-    if (storedPhone) {
-      return {
-        id: 'patient_001',
-        name: 'Jai Gudivada',
-        phone: storedPhone.startsWith('+91') ? storedPhone : `+91${storedPhone}`,
-        age: 28,
-        bloodGroup: 'O+',
-        allergies: ['Penicillin'],
-      };
-    }
-    return null;
-  };
-
-  const [patient, setPatient] = useState<Patient | null>(getInitialPatient);
+  const [patient, setPatient] = useState<Patient | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [records, setRecords] = useState<MedicalRecordDoc[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<MedicalRecordDoc | null>(null);
@@ -96,9 +82,11 @@ export default function PatientDashboard() {
   return (
     <PageContainer roleName="Patient">
       <div ref={containerRef} className="space-y-6">
-        
+        <ChatWidget />
+
         {/* Patient Demographic Card */}
         <Card className="bg-white border-slate-200">
+
           <CardContent className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             <div className="flex items-center space-x-4">

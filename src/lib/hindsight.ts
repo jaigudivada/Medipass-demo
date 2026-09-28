@@ -89,6 +89,10 @@ function getHindsightClient(): HindsightClient {
   return _hindsightClient;
 }
 
+export function getHindsightClientExported() {
+  return getHindsightClient();
+}
+
 function getGroqClient() {
   if (_groqClient) return _groqClient;
   _groqClient = new Groq({
@@ -99,7 +103,7 @@ function getGroqClient() {
 }
 
 /** bankId uniquely identifies each patient's memory bank in Hindsight */
-function patientBankId(patientId: string): string {
+export function patientBankId(patientId: string): string {
   return `medipass-patient-${patientId}`;
 }
 
@@ -521,6 +525,31 @@ export function getVisitQualityProgression(visitCount: number): VisitHistory[] {
     agentQuality: examples[i].quality,
     example: examples[i].example,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Utility: Simple recall for Chatbot
+// ---------------------------------------------------------------------------
+
+export async function recallPatientMemories(patientId: string, query: string): Promise<string> {
+  try {
+    const client = getHindsightClient();
+    const bankId = patientBankId(patientId);
+    const recalled = await client.recall(bankId, query, { budget: 'mid' });
+
+    if (recalled && typeof recalled === 'object') {
+      const memories = (recalled as any).memories || (recalled as any).results || (recalled as any).items || [];
+      if (Array.isArray(memories) && memories.length > 0) {
+        return memories.map((m: any) => m.content || m.text || String(m)).join('\n\n');
+      }
+    } else if (typeof recalled === 'string' && recalled.length > 10) {
+      return recalled;
+    }
+    return '';
+  } catch (err: any) {
+    console.warn('[Hindsight] recallPatientMemories error:', err);
+    return '';
+  }
 }
 
 // ---------------------------------------------------------------------------

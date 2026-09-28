@@ -1,162 +1,74 @@
-# 🏥 MediPass — Hindsight-Powered Medical Intelligence Agent & Universal Health Passport
+# MediPass: Longitudinal Medical Intelligence System
 
-> **Empowering clinicians with persistent patient memory across visits, dynamic treatment outcome learning, and real-time clinical intelligence powered by Vectorize Hindsight.**
+MediPass is an enterprise-grade clinical intelligence platform designed to eliminate the "memory gap" in healthcare. By integrating longitudinal memory management with high-speed LLM reasoning, MediPass transforms fragmented medical records into a continuous, evolving patient history that improves with every clinical interaction.
 
-[![Hindsight SDK](https://img.shields.io/badge/Memory%20Engine-Vectorize%20Hindsight-purple?style=for-the-badge)](https://vectorize.io)
-[![Tech Stack](https://img.shields.io/badge/Stack-React%20%7C%20TypeScript%20%7C%20Firebase-blue?style=for-the-badge&logo=react)](https://github.com/jaigudivada/Medipass-demo)
-[![AI Engine](https://img.shields.io/badge/AI%20Reasoning-Groq%20Cloud-orange?style=for-the-badge)](https://groq.com)
+## Executive Summary
 
----
+In contemporary clinical workflows, healthcare providers suffer from extreme information fragmentation. Clinicians spend a disproportionate amount of time re-analyzing historical notes and rediscovering patient patterns—a repetitive workflow that increases cognitive load and the risk of diagnostic error.
 
-## 🌟 Overview & Problem Statement
+MediPass solves this by deploying a memory-aware AI agent that maintains a persistent, longitudinal state for every patient. Leveraging Vectorize Hindsight for semantic memory and Groq for low-latency inference, the system implements a continuous learning loop: recalling relevant historical context, reasoning over current data, and retaining new clinical facts.
 
-### ❌ The Challenge in Longitudinal Healthcare
-- **Memory Loss Between Visits**: Doctors see dozens of patients daily and cannot recall specific past medication reactions, subtle trend progression, or historical treatment outcomes for every patient.
-- **Fragmented Medical Histories**: Patients carry bulky physical files or lose past prescriptions, forcing clinicians to make decisions without historic vitals or lab trends.
-- **Static LLMs Lack Context**: Standard AI assistants analyze single visits in isolation without learning how a specific patient responded to prior treatments.
+## System Architecture & Memory Lifecycle
 
-### ✅ The MediPass Solution
-**MediPass** turns standard clinical documentation into an adaptive, memory-powered medical agent:
-1. **Persistent Patient Memory Banks**: Every patient gets a dedicated Hindsight memory bank (`medipass-patient-{patientId}`) that grows continuously across clinical encounters.
-2. **Context-Aware Clinical Recall**: Before generating clinical insights, MediPass recalls historical visit records, allergies, family risk factors, and prior treatment responses.
-3. **Treatment Outcome Learning**: Doctors can confirm, modify, or reject AI recommendations. Doctor feedback is retained into Hindsight to refine future recommendations.
-4. **Role-Based Workflows**: Dedicated interfaces for Patients, Hospital Receptionists, Attending Physicians, and Administrators.
+The platform is built on a "Recall-Reason-Retain" architecture, ensuring that the AI agent does not operate in a stateless vacuum.
 
----
+### 1. Semantic Recall (Memory Retrieval)
+Unlike standard RAG (Retrieval-Augmented Generation) which may retrieve irrelevant chunks, MediPass utilizes Vectorize Hindsight to maintain dedicated memory banks for each patient. The system performs semantic queries to extract only the most pertinent historical patterns, allergies, and treatment responses relative to the current clinical presentation.
 
-## 🧠 How Hindsight Memory Is Used in MediPass
+### 2. Augmented Reasoning (Intelligence)
+The recalled memories are synthesized with real-time vitals and current visit notes. This augmented context is processed via Groq's high-performance inference engine, enabling the agent to identify trends (e.g., "Patient's blood pressure has spiked every 3 months for the last year") rather than just reporting current values.
 
-MediPass leverages the Vectorize Hindsight SDK (`@vectorize-io/hindsight-sdk`) to provide intelligent longitudinal memory:
+### 3. Longitudinal Retention (Continuous Learning)
+To ensure the system evolves, MediPass implements a retention phase. The agent analyzes the interaction, extracts new longitudinal facts (e.g., a newly confirmed medication intolerance), and commits them back to the Hindsight memory bank. This ensures that the agent's intelligence grows cumulatively.
 
-### 1. `createBank` — Dedicated Patient Memory Isolation
-Each patient receives a dedicated memory bank (`medipass-patient-{patientId}`). Memory banks are initialized with clinical background context establishing the agent's persistent role as a longitudinal medical assistant.
+## Core Components
 
-```typescript
-await client.createBank(`medipass-patient-${patientId}`, {
-  name: `MediPass Agent — ${patientName}`,
-  background: `Persistent Medical Intelligence Agent for ${patientName}...`
-});
-```
+### Patient Health Intelligence Assistant
+A secure, patient-facing interface that allows users to query their longitudinal history.
+- **History Synthesis**: Aggregates data across multiple visits to answer complex questions about health trends.
+- **Clinical Contextualization**: Explains medical reports and prescriptions in accessible language while maintaining clinical accuracy.
+- **Safety Guardrails**: Implements deterministic triggers to redirect users to emergency services upon detection of critical symptoms.
 
-### 2. `retain` — Continuous Visit & Feedback Storage
-Every clinical interaction is indexed into Hindsight:
-- **Visit Documentation**: Symptoms, vitals, lab findings, and clinical summaries are retained after each appointment.
-- **Doctor Feedback Loop**: When a doctor confirms, modifies, or rejects a recommendation, the outcome signal is stored into Hindsight so the agent adapts to clinical preferences.
+### Clinician Decision Support Panel
+A high-density intelligence layer for providers that reduces administrative overhead.
+- **Pattern Recognition**: Proactively flags recurring medical patterns discovered across the patient's lifetime.
+- **Risk Prediction**: Combines family history and longitudinal data to predict potential clinical risks.
+- **Outcome Feedback Loop**: Allows clinicians to verify or correct AI insights, which are then retained to refine the agent's future reasoning.
 
-```typescript
-await client.retain(bankId, visitContent, {
-  timestamp: new Date(),
-  metadata: { type: 'visit_history', doctorId }
-});
-```
+## Technical Specification
 
-### 3. `recall` — Semantic Retrieval Across Past Visits
-When a doctor enters new visit notes, MediPass queries Hindsight with a semantic recall budget (`budget: 'mid'`). Relevant historical memories, allergy warnings, and past treatment outcomes are injected into the Groq prompt context.
-
-```typescript
-const recalled = await client.recall(bankId, recallQuery, { budget: 'mid' });
-```
-
-### 4. `reflect` & Outcome Learning — Dynamic Recommendation Tuning
-By evaluating doctor feedback over time, Hindsight enables the agent to recognize recurring patient patterns (e.g., medication intolerance, dosage sensitivities) and improve recommendation accuracy with each visit.
-
----
-
-## 🏗️ System Architecture
-
-```mermaid
-graph TD
-    Doctor[Doctor / Clinician] -->|1. Enters Visit Notes| FrontEnd[MediPass React Dashboard]
-    
-    subgraph Hindsight Memory Lifecycle
-        FrontEnd -->|2. Recall Relevant History| Hindsight[Hindsight Cloud API / Vectorize]
-        Hindsight -->|3. Recalled Patient Memories| FrontEnd
-        FrontEnd -->|4. Prompt with Memory Context| Groq[Groq AI Engine - Qwen LLM]
-        Groq -->|5. Clinical Insights & Risks| FrontEnd
-        FrontEnd -->|6. Retain Visit & Doctor Feedback| Hindsight
-    end
-    
-    subgraph Data Persistence
-        FrontEnd -->|Sync Vitals & Queue| Firebase[Firebase Firestore]
-        FrontEnd -->|Document Storage| Cloudinary[Cloudinary CDN]
-    end
-```
-
----
-
-## 🛠️ Tech Stack & Layer Responsibility
-
-| Layer | Technologies Used | Purpose |
+| Layer | Technology | Implementation Detail |
 | :--- | :--- | :--- |
-| **Memory Engine** | **Hindsight (`@vectorize-io/hindsight-sdk`)** | **Persistent patient memory bank across visits, semantic recall, & outcome learning** |
-| **AI Reasoning** | Groq SDK (`qwen/qwen3.8-27b` / `llama-3.3-70b`) | Multimodal LLM reasoning using Hindsight recalled memory context |
-| **Database & Real-time** | Firebase Firestore | Real-time queue sync, patient metadata, and clinical session tracking |
-| **Authentication** | Firebase Auth | Role-based authentication (Patient, Receptionist, Doctor, Admin) |
-| **Storage & CDN** | Cloudinary CDN | High-resolution medical prescription & diagnostic document storage |
-| **Frontend Framework** | React 18, TypeScript, Vite | Modern responsive clinical web interface |
+| **Memory Engine** | Vectorize Hindsight | Longitudinal state management and semantic memory banks |
+| **Inference Engine** | Groq (Qwen/Llama) | High-throughput LLM reasoning for clinical synthesis |
+| **Database** | Firebase Firestore | Real-time synchronization of clinical sessions and metadata |
+| **Identity & Access** | Firebase Auth | RBAC implementation (Patient, Doctor, Receptionist, Admin) |
+| **Frontend** | React / TypeScript | Type-safe, responsive clinical interface |
+| **Storage** | Cloudinary | Secure hosting for high-resolution medical documentation |
 
----
+## Deployment & Setup
 
-## ⚡ Quick Start & Local Setup
+### Prerequisites
+- Node.js v18+
+- npm v9+
 
-### 1. Prerequisites
-- **Node.js**: `v18.0.0` or higher
-- **npm**: `v9.0.0` or higher
-
-### 2. Clone Repository & Install Dependencies
+### Installation
 ```bash
 git clone https://github.com/jaigudivada/Medipass-demo.git
 cd Medipass-demo
 npm install
 ```
 
-### 3. Environment Configuration
-Create a `.env` file in the root directory:
+### Configuration
+Initialize a `.env` file with the following required variables:
+- `VITE_HINDSIGHT_API_KEY`: API key for the Vectorize Hindsight engine.
+- `VITE_GROQ_API_KEY`: API key for Groq inference.
+- `VITE_FIREBASE_CONFIG`: Standard Firebase project configuration.
 
-```env
-# Vectorize Hindsight Configuration
-VITE_HINDSIGHT_INSTANCE_URL=https://api.hindsight.vectorize.io
-VITE_HINDSIGHT_API_KEY=your_hindsight_api_key
-
-# Groq AI Key
-VITE_GROQ_API_KEY=your_groq_api_key
-VITE_GROQ_MODEL=qwen/qwen3.8-27b
-
-# Firebase Configuration
-VITE_FIREBASE_API_KEY=your_firebase_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-```
-
-### 4. Seed Demo Patient History into Hindsight
-Seed sample patient history (`patient_001` - Jai Gudivada) with 4 sequential visits into Hindsight Cloud memory:
-
-```bash
-npm run seed:demo-history
-```
-
-This populates Hindsight bank `medipass-patient-patient_001` with:
-- Visit 1: Initial Hypertension & Migraine Assessment
-- Visit 2: Amlodipine Side-Effect & Medication Adjustment
-- Visit 3: Blood Pressure Stabilization & Work Stress Check
-- Visit 4: Comprehensive Follow-Up & Dosage Optimization
-
-### 5. Run Development Server
+### Execution
 ```bash
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
 
----
-
-## 🔐 Clinical Verification & Medical Disclaimer
-
-> ⚠️ **Medical AI Disclaimer**: MediPass AI insights and Hindsight recall are designed as clinical decision-support tools. All AI-generated advice requires verification by licensed medical professionals before clinical implementation.
-
----
-
-## 📜 License & Acknowledgments
-Built with ❤️ using Vectorize Hindsight, Groq AI, and Firebase.
+## Clinical Verification & Compliance
+MediPass is designed as a Clinical Decision Support (CDS) tool. All AI-generated insights are intended to augment, not replace, the professional judgment of licensed healthcare providers. All outputs require clinical verification before implementation.

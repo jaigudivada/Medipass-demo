@@ -1,18 +1,20 @@
+import 'dotenv/config';
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  updateProfile,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { firebaseConfig } from '../lib/firebase';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export const MOCK_DATA = {
+const MOCK_DATA = {
   hospitals: [
     {
       id: 'apollo_hosp_001',
@@ -33,17 +35,16 @@ export const MOCK_DATA = {
       status: 'active',
     },
   ],
-
   users: [
     {
-      role: 'admin',
+      role: 'main_admin',
       email: 'admin@medipass.demo',
       password: 'MediPass@123Main',
       name: 'Super Main Admin',
       status: 'active',
     },
     {
-      role: 'admin',
+      role: 'hospital_admin',
       email: 'admin@apollo.demo',
       password: 'MediPass@123HospAdmin',
       name: 'Apollo Hospital Admin',
@@ -51,7 +52,7 @@ export const MOCK_DATA = {
       status: 'active',
     },
     {
-      role: 'admin',
+      role: 'hospital_admin',
       email: 'admin@fortis.demo',
       password: 'MediPass@123HospAdmin',
       name: 'Fortis Hospital Admin',
@@ -95,14 +96,11 @@ export const MOCK_DATA = {
       status: 'active',
     },
   ],
-
   patients: [
     {
       patientId: 'patient_001',
       name: 'Jai Gudivada',
-      phone: '+919876543212',
-      email: 'patient@medipass.demo',
-      password: 'MediPass@123Patient',
+      phone: '+911111111111',
       age: 28,
       bloodGroup: 'O+',
       allergies: ['Penicillin'],
@@ -127,7 +125,7 @@ export const MOCK_DATA = {
 };
 
 export async function seedDemoDataToFirestore() {
-  console.log('🌱 Starting mock data seed...');
+  console.log('🌱 Starting secure demo data seed...');
 
   try {
     // 1. Create hospitals
@@ -143,9 +141,9 @@ export async function seedDemoDataToFirestore() {
       console.log(`   ✓ Hospital: ${hospital.name}`);
     }
 
-    // 2. Create staff users in Firestore
+    // 2. Create staff users
     for (const u of MOCK_DATA.users) {
-      let uid = `demo_uid_${u.email.replace(/[@.]/g, '_')}`;
+      let uid: string;
       try {
         const userCred = await createUserWithEmailAndPassword(auth, u.email, u.password);
         uid = userCred.user.uid;
@@ -158,7 +156,11 @@ export async function seedDemoDataToFirestore() {
             await signOut(auth);
           } catch (loginErr) {
             console.warn(`Could not login existing user ${u.email}`);
+            continue;
           }
+        } else {
+          console.error(`Error creating user ${u.email}:`, err);
+          continue;
         }
       }
 
@@ -174,12 +176,14 @@ export async function seedDemoDataToFirestore() {
       if (u.specialty) staffDocData.specialty = u.specialty;
       if (u.department) staffDocData.department = u.department;
 
-      const staffDocRef = doc(db, 'staff', uid);
-      await setDoc(staffDocRef, staffDocData, { merge: true });
+      await setDoc(doc(db, 'staff', uid), staffDocData, { merge: true });
       console.log(`   ✓ Staff user: ${u.name} (${u.role})`);
     }
 
-    // 3. Create patients
+    // 3. Create patients with phone auth
+    // Note: Firebase Phone Auth users are created via signInWithPhoneNumber flow
+    // For seeding, we create the Firestore records. The phone auth users will be created
+    // when they first sign in via the OTP flow.
     for (const p of MOCK_DATA.patients) {
       await setDoc(
         doc(db, 'patients', p.patientId),
@@ -200,18 +204,17 @@ export async function seedDemoDataToFirestore() {
         { patientId: p.patientId },
         { merge: true }
       );
-      console.log(`   ✓ Patient: ${p.name}`);
+      console.log(`   ✓ Patient: ${p.name} (${p.phone})`);
     }
 
-    console.log('✅ Mock data seed complete!');
+    console.log('✅ Demo data seed complete! Patients will be created in Firebase Auth on first OTP sign-in.');
     return true;
   } catch (error) {
-    console.error('Error seeding data:', error);
+    console.error('Critical error seeding data:', error);
     return false;
   }
 }
 
-// Execute if run directly via Node/ts-node
 if (typeof require !== 'undefined' && require.main === module) {
   seedDemoDataToFirestore();
 }

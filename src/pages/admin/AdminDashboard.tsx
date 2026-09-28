@@ -4,17 +4,15 @@ import { MainAdminDashboard } from './MainAdminDashboard';
 import { HospitalAdminDashboard } from './HospitalAdminDashboard';
 
 export default function AdminDashboard() {
-  const { role, user } = useAuth();
-  const userEmail = user?.email || '';
+  const { role } = useAuth();
 
-  const isMainAdmin =
-    role === 'main_admin' ||
-    userEmail.includes('admin@medipass.demo') ||
-    userEmail.includes('admin');
-
-  if (isMainAdmin && !userEmail.includes('apollo') && !userEmail.includes('fortis')) {
+  if (role === 'main_admin' || role === 'admin') {
     return <MainAdminDashboard />;
   }
 
-  return <HospitalAdminDashboard />;
+  if (role === 'hospital_admin') {
+    return <HospitalAdminDashboard />;
+  }
+
+  return <MainAdminDashboard />;
 }

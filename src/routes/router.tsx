@@ -99,7 +99,7 @@ export default function AppRoutes() {
                 {
                   main_admin: '/admin/main',
                   hospital_admin: '/admin/hospital',
-                  admin: '/admin',
+                  admin: '/admin/main',
                   doctor: '/doctor',
                   receptionist: '/reception',
                   patient: '/patient',
